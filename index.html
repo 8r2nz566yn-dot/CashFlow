@@ -7,392 +7,360 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Cashflow">
 <meta name="theme-color" content="#0E6E62">
-<title>Cashflow-Cockpit · Schrickel</title>
+<title>Cashflow-Cockpit</title>
 <link rel="manifest" href="manifest.json">
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{margin:0;background:#EEF1F4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
+body{margin:0;background:#EEF1F4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
 #splash{position:fixed;inset:0;background:#EEF1F4;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999}
-#splash h2{font-size:22px;font-weight:800;color:#15202B;margin:12px 0 4px;letter-spacing:-0.5px}
+#splash h2{font-size:22px;font-weight:800;color:#15202B;margin:12px 0 4px}
 #splash p{font-size:13px;color:#5A6B79;margin:0}
-.spin{width:36px;height:36px;border:3px solid #DCE3E9;border-top-color:#0E6E62;border-radius:50%;animation:spin 0.8s linear infinite}
+.spin{width:36px;height:36px;border:3px solid #DCE3E9;border-top-color:#0E6E62;border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+[v-cloak]{display:none}
 </style>
-<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');</script>
 </head>
 <body>
-<div id="splash"><div class="spin"></div><h2>Cashflow-Cockpit</h2><p>Schrickel · Ruhestandsplanung</p></div>
+<div id="splash"><div class="spin"></div><h2>Cashflow-Cockpit</h2><p>Schrickel &middot; Ruhestandsplanung</p></div>
 <div id="root"></div>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js" crossorigin></script>
 <script>
-'use strict';
-const{useState,useMemo,useEffect}=React;
-const{BarChart,Bar,LineChart,Line,ComposedChart,XAxis,YAxis,CartesianGrid,Tooltip,ResponsiveContainer,LabelList,Legend}=Recharts;
+const{useState,useMemo,useEffect,useRef}=React;
 const html=htm.bind(React.createElement);
 
-const C={page:"#EEF1F4",surface:"#FFFFFF",ink:"#15202B",inkSoft:"#5A6B79",hairline:"#DCE3E9",accent:"#0E6E62"};
-const mono="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
-const sans="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+const C={page:"#EEF1F4",surface:"#FFFFFF",ink:"#15202B",soft:"#5A6B79",line:"#DCE3E9",green:"#0E6E62"};
+const mono="ui-monospace,SFMono-Regular,Menlo,monospace";
 
-const SCEN=[{label:"Alter 60",age:60},{label:"Alter 63",age:63},{label:"Alter 65",age:65},{label:"Alter 67",age:67}];
+const SCEN=[{l:"Alter 60",a:60},{l:"Alter 63",a:63},{l:"Alter 65",a:65},{l:"Alter 67",a:67}];
 
-const INITIAL=[
-  {id:"drv",name:"DRV – Gesetzliche Rente",color:"#3B5B7A",kind:"fixed",value:2826.39,startAge:63,taxablePct:85,svPct:0,
-   note:"Volle Rente mit Ausgleich (109.474 € Einmalzahlung). PKV → kein KV/PV-Abzug."},
-  {id:"bosch",name:"bAV Bosch (Vorsorgeplan)",color:"#1F8A82",kind:"fixed",value:8012.61,startAge:60,taxablePct:16.8,svPct:0,
-   note:"Netto ≈ Brutto (PKV). Nur 1.343,18 € (Firma-Stabil) steuerpflichtig."},
-  {id:"brose",name:"bAV Brose (Betriebsrente)",color:"#C2843B",kind:"fixed",value:4451,startAge:67,taxablePct:100,svPct:0,
-   note:"Kontostand 31.12.2025: 53.414 €. Auszahlung mit Alter 67."},
-  {id:"div",name:"Dividenden (Depot)",color:"#6E8F4E",kind:"capital",capital:1204676,rate:1.10,kapPct:17.3,startAge:60,taxablePct:0,svPct:0,
-   note:"Stand 23.06.2026: TR 1.033.572 + Comdirect 171.387 €. Brutto 1,10 %, effektive Steuer ~17,3 %."},
-  {id:"zins",name:"Zinsen Barmittel",color:"#7C6CA6",kind:"capital",capital:156400,rate:3.5,kapPct:26.375,startAge:60,taxablePct:0,svPct:0,
-   note:"Barmittel × Zinssatz ÷ 12. Trade Republic 3,50 % p.a."},
-  {id:"miete",name:"Miete (Vermietung)",color:"#94897A",kind:"fixed",value:1200,startAge:60,taxablePct:100,svPct:0,
-   note:"Mieteinnahmen brutto, voll steuerpflichtig. Vor Abzug Werbungskosten/AfA."},
-  {id:"frau",name:"Gehalt Ehefrau (StKl. 5)",color:"#D4A14A",kind:"fixed",value:4700,startAge:60,endAge:63,taxablePct:100,svPct:22.5,overrideEst:32,
-   note:"4.700 €/Monat brutto, Steuerklasse 5. Lohnsteuer ~32 %, SV ~22,5 % (GKV). Endet mit Alter 63."},
-  {id:"beratung",name:"Beratung",color:"#4A7BA6",kind:"fixed",value:16666.67,startAge:60,endAge:63,taxablePct:100,svPct:0,
-   note:"200.000 €/Jahr brutto, nur bis Alter 63. Voll steuerpflichtig."},
-  {id:"entnahme",name:"Depot-Entnahme",color:"#A4548C",kind:"drawdown",value:4166.67,startAge:63,taxablePct:0,svPct:0,kapPct:15,
-   note:"50.000 €/Jahr Entnahme aus Depot ab Alter 63. Nur Gewinnanteil steuerpflichtig (~15 %)."},
+const ROWS0=[
+  {id:"drv",  name:"DRV Rente",          col:"#3B5B7A",kind:"fix",val:2826.39,s0:63,ep:85,sv:0,note:"Volle Rente mit Ausgleich (109.474€). PKV=kein KV/PV."},
+  {id:"bosch",name:"bAV Bosch",           col:"#1F8A82",kind:"fix",val:8012.61,s0:60,ep:100,sv:0,note:"Netto=Brutto (PKV). 1.343€ steuerpflichtig (16,8%)."},
+  {id:"brose",name:"bAV Brose",           col:"#C2843B",kind:"fix",val:4451,   s0:67,ep:100,sv:0,note:"Ab Alter 67. Kontostand 31.12.2025: 53.414€."},
+  {id:"div",  name:"Dividenden (Depot)",  col:"#6E8F4E",kind:"cap",capital:1204676,rate:1.10,kap:17.3,s0:60,note:"TR 1.033.572 + Comdirect 171.387€. Rendite 1,10% brutto."},
+  {id:"zins", name:"Zinsen Barmittel",    col:"#7C6CA6",kind:"cap",capital:156400,rate:3.5,kap:26.375,s0:60,note:"Trade Republic 3,50% p.a."},
+  {id:"miete",name:"Miete",               col:"#94897A",kind:"fix",val:1200,   s0:60,ep:100,sv:0,note:"Mieteinnahmen brutto, voll steuerpflichtig."},
+  {id:"frau", name:"Gehalt Ehefrau (StKl5)",col:"#D4A14A",kind:"fix",val:4700, s0:60,e9:63,ep:100,sv:22.5,ls:32,note:"4.700€/M brutto. Steuerklasse 5, GKV. Endet Alter 63."},
+  {id:"bera", name:"Beratung",             col:"#4A7BA6",kind:"fix",val:16667, s0:60,e9:63,ep:100,sv:0,note:"200.000€/Jahr brutto bis Alter 63."},
+  {id:"entn", name:"Depot-Entnahme",       col:"#A4548C",kind:"dwn",val:4167,  s0:63,kap:15,note:"50.000€/Jahr ab Alter 63. Nur Gewinnanteil steuerpflichtig."},
 ];
 
-const eur=n=>new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n||0);
-const eur2=n=>new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
+const f0=n=>new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n||0);
+const f2=n=>new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
 const num=v=>Number(v)||0;
-const gross=r=>r.kind==="capital"?(num(r.capital)*num(r.rate))/100/12:num(r.value);
-const isActive=(r,age)=>r.startAge<=age&&(r.endAge==null||age<r.endAge);
-const fmtDate=iso=>{try{return new Date(iso+"T00:00:00").toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"});}catch{return iso;}};
-const todayISO=()=>new Date().toISOString().slice(0,10);
+const gros=r=>r.kind==="cap"?(num(r.capital)*num(r.rate))/100/12:num(r.val);
+const live=(r,a)=>r.s0<=a&&(r.e9==null||a<r.e9);
+const dayStr=d=>{try{return new Date(d+"T12:00:00").toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"});}catch{return d;}};
+const today0=()=>new Date().toISOString().slice(0,10);
 const BIRTH=new Date(1965,11,8);
-const ageNow=()=>{const now=new Date();let a=now.getFullYear()-BIRTH.getFullYear();const m=now.getMonth()-BIRTH.getMonth();if(m<0||(m===0&&now.getDate()<BIRTH.getDate()))a--;return a;};
+const myAge=()=>{const n=new Date(),a=n.getFullYear()-BIRTH.getFullYear(),m=n.getMonth()-BIRTH.getMonth();return(m<0||(m===0&&n.getDate()<BIRTH.getDate()))?a-1:a;};
 
-function Field({label,suffix,value,onChange,step,w}){
-  step=step||"0.01"; w=w||"1 1 120px";
-  return html`<label style=${{display:"block",flex:w}}>
-    <span style=${{display:"block",fontSize:10,letterSpacing:.6,textTransform:"uppercase",color:C.inkSoft,marginBottom:3}}>${label}</span>
-    <span style=${{display:"flex",alignItems:"center",border:`1px solid ${C.hairline}`,borderRadius:8,background:"#FBFCFD",overflow:"hidden"}}>
-      <input type="number" step=${step} value=${value} onInput=${e=>onChange(e.target.value)}
-        style=${{width:"100%",border:"none",outline:"none",background:"transparent",padding:"8px 10px",fontFamily:mono,fontSize:14,color:C.ink,textAlign:"right"}} />
-      ${suffix?html`<span style=${{padding:"0 10px",color:C.inkSoft,fontSize:13,fontFamily:mono}}>${suffix}</span>`:null}
+const stackPlugin={id:"stkTot",afterDatasetsDraw(ch){
+  const{ctx,data}=ch;
+  data.labels.forEach((_,xi)=>{
+    let sum=0;data.datasets.forEach(ds=>{sum+=ds.data[xi]||0;});
+    if(sum>0){
+      const lastMeta=ch.getDatasetMeta(data.datasets.length-1);
+      if(lastMeta&&lastMeta.data[xi]){
+        const bar=lastMeta.data[xi];
+        ctx.save();ctx.fillStyle="#15202B";ctx.font="bold 11px "+mono;ctx.textAlign="center";
+        ctx.fillText(f0(sum),bar.x,bar.y-4);ctx.restore();
+      }
+    }
+  });
+}};
+
+function StackedBar({data,rows}){
+  const ref=useRef(null),ch=useRef(null);
+  useEffect(()=>{
+    if(!ref.current)return;
+    if(ch.current){ch.current.destroy();ch.current=null;}
+    ch.current=new Chart(ref.current.getContext("2d"),{
+      type:"bar",plugins:[stackPlugin],
+      data:{labels:data.map(d=>d.l),datasets:rows.map(r=>({
+        label:r.name,data:data.map(d=>d[r.id]||0),backgroundColor:r.col,stack:"a"
+      }))},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{mode:"index",callbacks:{footer:items=>"Summe: "+f0(items.reduce((s,i)=>s+i.parsed.y,0))}}},
+        scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:C.line},ticks:{callback:v=>(v/1000).toFixed(0)+"k",font:{size:10}}}}}
+    });
+    return()=>{if(ch.current)ch.current.destroy();};
+  },[JSON.stringify(data),JSON.stringify(rows.map(r=>r.id+r.col))]);
+  return html`<div style=${{height:"300px",position:"relative"}}><canvas ref=${ref}></canvas></div>`;
+}
+
+function LineChart2({data}){
+  const ref=useRef(null),ch=useRef(null);
+  useEffect(()=>{
+    if(!ref.current||data.length<2)return;
+    if(ch.current){ch.current.destroy();ch.current=null;}
+    ch.current=new Chart(ref.current.getContext("2d"),{
+      type:"line",
+      data:{labels:data.map(d=>d.date),datasets:[
+        {label:"Gesamt",data:data.map(d=>d.tot),borderColor:"#15202B",borderWidth:2,pointRadius:4,fill:false,tension:.1},
+        {label:"Trade Republic",data:data.map(d=>d.d1),borderColor:"#1F8A82",borderWidth:1.5,pointRadius:3,fill:false,tension:.1},
+        {label:"Comdirect",data:data.map(d=>d.d2),borderColor:"#6E8F4E",borderWidth:1.5,pointRadius:3,fill:false,tension:.1},
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{labels:{font:{size:10}}}},
+        scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{grid:{color:C.line},ticks:{callback:v=>(v/1000).toFixed(0)+"k",font:{size:10}}}}}
+    });
+    return()=>{if(ch.current)ch.current.destroy();};
+  },[JSON.stringify(data)]);
+  return html`<div style=${{height:"180px",position:"relative"}}><canvas ref=${ref}></canvas></div>`;
+}
+
+function ProjChart({data}){
+  const ref=useRef(null),ch=useRef(null);
+  useEffect(()=>{
+    if(!ref.current)return;
+    if(ch.current){ch.current.destroy();ch.current=null;}
+    ch.current=new Chart(ref.current.getContext("2d"),{
+      type:"bar",
+      data:{labels:data.map(p=>""+p.age),datasets:[
+        {type:"bar",label:"Nominal",data:data.map(p=>p.nom),backgroundColor:"#0E6E62",borderRadius:4,order:2},
+        {type:"line",label:"Real (Kaufkraft)",data:data.map(p=>p.real),borderColor:"#9A5B2A",borderWidth:2,pointRadius:3,fill:false,order:1},
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{labels:{font:{size:10}}},tooltip:{callbacks:{label:c=>c.dataset.label+": "+f0(c.raw)}}},
+        scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:C.line},ticks:{callback:v=>(v/1000).toFixed(0)+"k",font:{size:10}}}}}
+    });
+    return()=>{if(ch.current)ch.current.destroy();};
+  },[JSON.stringify(data)]);
+  return html`<div style=${{height:"240px",position:"relative"}}><canvas ref=${ref}></canvas></div>`;
+}
+
+function Inp({label,sfx,val,set,step,w}){
+  return html`<label style=${{display:"block",flex:w||"1 1 120px"}}>
+    <span style=${{display:"block",fontSize:10,letterSpacing:.6,textTransform:"uppercase",color:C.soft,marginBottom:3}}>${label}</span>
+    <span style=${{display:"flex",alignItems:"center",border:"1px solid "+C.line,borderRadius:8,background:"#FBFCFD",overflow:"hidden"}}>
+      <input type="number" step=${step||"1"} value=${val} onInput=${e=>set(e.target.value)}
+        style=${{width:"100%",border:"none",outline:"none",background:"transparent",padding:"8px 10px",fontFamily:mono,fontSize:14,color:C.ink,textAlign:"right"}}/>
+      ${sfx&&html`<span style=${{padding:"0 10px",color:C.soft,fontSize:13}}>${sfx}</span>`}
     </span>
   </label>`;
 }
 
-function AgeSeg({value,onChange,color}){
-  return html`<div style=${{display:"inline-flex",border:`1px solid ${C.hairline}`,borderRadius:999,overflow:"hidden"}}>
-    ${[60,63,65,67].map(a=>html`<button key=${a} onClick=${()=>onChange(a)} style=${{border:"none",cursor:"pointer",padding:"4px 11px",fontSize:11,
-      background:value===a?color:"transparent",color:value===a?"#fff":C.inkSoft,fontWeight:value===a?700:400}}>ab ${a}</button>`)}
+function AgePill({val,set,col}){
+  return html`<div style=${{display:"inline-flex",border:"1px solid "+C.line,borderRadius:999,overflow:"hidden"}}>
+    ${[60,63,65,67].map(a=>html`<button key=${a} onClick=${()=>set(a)} style=${{border:"none",cursor:"pointer",padding:"4px 10px",fontSize:11,
+      background:val===a?col:"transparent",color:val===a?"#fff":C.soft,fontWeight:val===a?700:400}}>ab ${a}</button>`)}
   </div>`;
 }
 
-function CashflowCockpit(){
-  const[rows,setRows]=useState(INITIAL);
+function App(){
+  const[rows,setRows]=useState(ROWS0);
   const[net,setNet]=useState(true);
-  const[estRate,setEstRate]=useState(35);
-  const[pkvSelf,setPkvSelf]=useState(780);
-  const[pkvKid,setPkvKid]=useState(396);
-  const[openTax,setOpenTax]=useState(false);
-  const[snapshots,setSnapshots]=useState([]);
-  const[loaded,setLoaded]=useState(false);
-  const[fDate,setFDate]=useState(todayISO());
-  const[fD1,setFD1]=useState("");
-  const[fD2,setFD2]=useState("");
-  const[fDiv,setFDiv]=useState("");
-  const[projStart,setProjStart]=useState(1204676);
-  const[projRate,setProjRate]=useState(6);
-  const[projFlow,setProjFlow]=useState(-50000);
-  const[projInfl,setProjInfl]=useState(2);
-  const[projWithdrawAge,setProjWithdrawAge]=useState(63);
+  const[esr,setEsr]=useState(35);
+  const[pku,setPku]=useState(780);
+  const[pkt,setPkt]=useState(396);
+  const[tax,setTax]=useState(false);
+  const[snaps,setSnaps]=useState([]);
+  const[rdy,setRdy]=useState(false);
+  const[fd,setFd]=useState(today0());
+  const[f1,setF1]=useState("");
+  const[f2,setF2]=useState("");
+  const[fv,setFv]=useState("");
+  const[ps,setPs]=useState(1204676);
+  const[pr,setPr]=useState(6);
+  const[pf,setPf]=useState(-50000);
+  const[pi,setPi]=useState(2);
+  const[pw,setPw]=useState(63);
 
-  const SKEY="cashflow-depot-v1";
-  const DEF=[{date:"2026-06-19",d1:1024548,d2:196211,div12m:10265},{date:"2026-06-23",d1:1033572,d2:171387,div12m:12840}];
+  const SK="cashflow-v3";
+  const DEF=[{date:"2026-06-19",d1:1024548,d2:196211,dv:10265},{date:"2026-06-23",d1:1033572,d2:171387,dv:12840}];
+  useEffect(()=>{try{const s=localStorage.getItem(SK);setSnaps(s?JSON.parse(s):DEF);if(!s)localStorage.setItem(SK,JSON.stringify(DEF));}catch{setSnaps(DEF);}setRdy(true);},[]);
+  const savS=nx=>{setSnaps(nx);try{localStorage.setItem(SK,JSON.stringify(nx));}catch{}};
+  const addS=()=>{if(!fd||(!f1&&!f2))return;const e={date:fd,d1:num(f1),d2:num(f2),dv:fv===""?null:num(fv)};savS([...snaps.filter(s=>s.date!==fd),e].sort((a,b)=>a.date.localeCompare(b.date)));setF1("");setF2("");setFv("");setFd(today0());};
+  const delS=d=>savS(snaps.filter(s=>s.date!==d));
 
-  useEffect(()=>{
-    try{const s=localStorage.getItem(SKEY);setSnapshots(s?JSON.parse(s):DEF);if(!s)localStorage.setItem(SKEY,JSON.stringify(DEF));}
-    catch(e){setSnapshots(DEF);}
-    setLoaded(true);
-  },[]);
+  const age0=myAge(),yr0=new Date().getFullYear();
+  const netM=r=>{const g=gros(r);if(r.kind==="cap"||r.kind==="dwn")return g-g*num(r.kap)/100;const er=r.ls!=null?num(r.ls):num(esr);return g-g*(num(r.ep)/100)*(er/100)-g*(num(r.sv)/100);};
+  const valOf=r=>net?netM(r):gros(r);
+  const upd=(id,p)=>setRows(rs=>rs.map(r=>r.id===id?{...r,...p}:r));
 
-  const saveSnap=next=>{setSnapshots(next);try{localStorage.setItem(SKEY,JSON.stringify(next));}catch(e){}};
-  const addSnap=()=>{
-    if(!fDate||(!fD1&&!fD2))return;
-    const e={date:fDate,d1:num(fD1),d2:num(fD2),div12m:fDiv===""?null:num(fDiv)};
-    saveSnap([...snapshots.filter(s=>s.date!==fDate),e].sort((a,b)=>a.date.localeCompare(b.date)));
-    setFD1("");setFD2("");setFDiv("");setFDate(todayISO());
-  };
-  const delSnap=date=>saveSnap(snapshots.filter(s=>s.date!==date));
-
-  const sorted=useMemo(()=>[...snapshots].sort((a,b)=>a.date.localeCompare(b.date)),[snapshots]);
-  const trackData=useMemo(()=>sorted.map(s=>({date:fmtDate(s.date),d1:s.d1,d2:s.d2,total:num(s.d1)+num(s.d2)})),[sorted]);
-
-  const startAge=ageNow();
-  const curYear=new Date().getFullYear();
-  const ageSteps=useMemo(()=>{const s=[];let a=startAge;while(a<85){s.push(a);a+=5;}s.push(85);return[...new Set(s)];},[startAge]);
-  const projection=useMemo(()=>{
-    const PV=num(projStart),r=num(projRate)/100,Cf=num(projFlow),i=num(projInfl)/100,wA=num(projWithdrawAge);
-    return ageSteps.map(age=>{
-      const t=age-startAge,tb=Math.max(0,Math.min(t,wA-startAge)),V0=PV*Math.pow(1+r,tb),ta=t-tb,g=Math.pow(1+r,ta);
-      const nom=ta<=0?V0:(r!==0?V0*g+Cf*((g-1)/r):V0+Cf*ta);
-      return{age,year:curYear+t,nominal:nom,real:i?nom/Math.pow(1+i,t):nom};
-    });
-  },[ageSteps,startAge,curYear,projStart,projRate,projFlow,projInfl,projWithdrawAge]);
-
-  const update=(id,patch)=>setRows(rs=>rs.map(r=>r.id===id?{...r,...patch}:r));
-  const reset=()=>{setRows(INITIAL);setEstRate(35);setPkvSelf(780);setPkvKid(396);setNet(true);};
-
-  const netM=r=>{
-    const g=gross(r);
-    if(r.kind==="capital"||r.kind==="drawdown")return g-g*num(r.kapPct)/100;
-    const er=r.overrideEst!=null?num(r.overrideEst):num(estRate);
-    return g-g*(num(r.taxablePct)/100)*(er/100)-g*(num(r.svPct)/100);
-  };
-  const valOf=r=>net?netM(r):gross(r);
-
-  const totals=useMemo(()=>SCEN.map(s=>{
-    const act=rows.filter(r=>isActive(r,s.age));
+  const tots=useMemo(()=>SCEN.map(s=>{
+    const act=rows.filter(r=>live(r,s.a));
     const drv=act.find(r=>r.id==="drv");
-    const zuschuss=drv?gross(drv)*0.0855:0;
+    const zu=drv?gros(drv)*0.0855:0;
     const n=act.reduce((x,r)=>x+netM(r),0);
-    const pkv=num(pkvSelf)+(s.age<63?num(pkvKid):0);
-    return{...s,view:act.reduce((x,r)=>x+valOf(r),0),gross:act.reduce((x,r)=>x+gross(r),0),net:n,zuschuss,pkv,avail:n-pkv+zuschuss};
-  }),[rows,net,estRate,pkvSelf,pkvKid]);
+    const pk=num(pku)+(s.a<63?num(pkt):0);
+    return{...s,vw:act.reduce((x,r)=>x+valOf(r),0),gr:act.reduce((x,r)=>x+gros(r),0),n,zu,pk,av:n-pk+zu};
+  }),[rows,net,esr,pku,pkt]);
 
-  const chartData=useMemo(()=>SCEN.map(s=>{const row={szenario:s.label};rows.forEach(r=>{row[r.id]=isActive(r,s.age)?valOf(r):0;});return row;}),[rows,net,estRate]);
+  const cdat=useMemo(()=>SCEN.map(s=>{const o={l:s.l};rows.forEach(r=>{o[r.id]=live(r,s.a)?valOf(r):0;});return o;}),[rows,net,esr]);
 
-  const exportCSV=()=>{
+  const srtS=useMemo(()=>[...snaps].sort((a,b)=>a.date.localeCompare(b.date)),[snaps]);
+  const ldat=useMemo(()=>srtS.map(s=>({date:dayStr(s.date),d1:s.d1,d2:s.d2,tot:num(s.d1)+num(s.d2)})),[srtS]);
+
+  const steps=useMemo(()=>{const a=[];let x=age0;while(x<85){a.push(x);x+=5;}a.push(85);return[...new Set(a)];},[age0]);
+  const proj=useMemo(()=>{const PV=num(ps),r=num(pr)/100,Cf=num(pf),i=num(pi)/100,wa=num(pw);
+    return steps.map(age=>{const t=age-age0,tb=Math.max(0,Math.min(t,wa-age0)),V0=PV*Math.pow(1+r,tb),ta=t-tb,g=Math.pow(1+r,ta);
+      const nom=ta<=0?V0:(r?V0*g+Cf*((g-1)/r):V0+Cf*ta);
+      return{age,year:yr0+t,nom,real:i?nom/Math.pow(1+i,t):nom};});},[steps,age0,yr0,ps,pr,pf,pi,pw]);
+
+  const csv=()=>{
     const f=n=>(n||0).toFixed(2).replace(".",",");
-    const L=["sep=;","Cashflow-Cockpit – Schrickel",`${net?"Netto":"Brutto"};Grenzsteuersatz;${f(estRate)}%`,"",
-      "Klasse;Typ;Beginn;Brutto/M;Netto/M;Netto/J"];
-    rows.forEach(r=>{const g=gross(r),n=netM(r);L.push([r.name,r.kind,"Alter "+r.startAge+(r.endAge?` bis ${r.endAge}`:""),f(g),f(n),f(n*12)].join(";"));});
-    L.push(""); totals.forEach(t=>L.push(`${t.label};${f(t.net)};${f(t.avail)};${f(t.avail*12)}`));
+    const L=["sep=;","Cashflow-Cockpit Schrickel",`${net?"Netto":"Brutto"};ESt;${f(esr)}%`,"","Klasse;Beginn;Brutto/M;Netto/M;Netto/J"];
+    rows.forEach(r=>L.push([r.name,"Alter "+r.s0+(r.e9?` bis ${r.e9}`:""),f(gros(r)),f(netM(r)),f(netM(r)*12)].join(";")));
+    L.push("");totals: tots.forEach(t=>L.push(`${t.l};${f(t.n)};${f(t.av)};${f(t.av*12)}`));
     const b=new Blob([L.join("\n")],{type:"text/csv;charset=utf-8;"});
-    const a=Object.assign(document.createElement("a"),{href:URL.createObjectURL(b),download:"cashflow.csv"});
-    a.click();URL.revokeObjectURL(a.href);
+    const a=Object.assign(document.createElement("a"),{href:URL.createObjectURL(b),download:"cashflow.csv"});a.click();
   };
 
-  function TBox({active,payload,label}){
-    if(!active||!payload)return null;
-    const items=payload.filter(p=>p.value>0),sum=items.reduce((s,p)=>s+p.value,0);
-    return html`<div style=${{background:C.surface,border:`1px solid ${C.hairline}`,borderRadius:10,padding:"10px 12px",boxShadow:"0 8px 24px rgba(21,32,43,.12)"}}>
-      <div style=${{fontSize:11,color:C.inkSoft,marginBottom:6}}>${label} · ${net?"netto":"brutto"}</div>
-      ${items.slice().reverse().map(p=>{const r=rows.find(x=>x.id===p.dataKey);return html`<div key=${p.dataKey} style=${{display:"flex",alignItems:"center",gap:8,fontSize:12,marginBottom:3}}>
-        <span style=${{width:9,height:9,borderRadius:2,background:r?r.color:"#ccc"}}></span>
-        <span style=${{color:C.ink,flex:1}}>${r?r.name:p.dataKey}</span>
-        <span style=${{fontFamily:mono}}>${eur(p.value)}</span>
-      </div>`;})}
-      <div style=${{borderTop:`1px solid ${C.hairline}`,marginTop:6,paddingTop:6,display:"flex",justifyContent:"space-between",fontSize:12,fontWeight:700}}>
-        <span>Summe</span><span style=${{fontFamily:mono}}>${eur(sum)}</span>
-      </div>
-    </div>`;
-  }
+  const btn=(label,action,bg,fg)=>html`<button onClick=${action} style=${{border:`1px solid ${bg===C.ink?C.line:bg}`,background:bg,color:fg||C.soft,borderRadius:8,padding:"7px 12px",fontSize:12,cursor:"pointer",fontWeight:bg===C.ink?600:400}}>${label}</button>`;
 
-  return html`<div style=${{minHeight:"100vh",background:C.page,color:C.ink,fontFamily:sans,padding:"20px 16px 48px"}}>
+  return html`<div style=${{minHeight:"100vh",background:C.page,color:C.ink,padding:"20px 16px 56px"}}>
   <div style=${{maxWidth:880,margin:"0 auto"}}>
 
-    <!-- Header -->
     <div style=${{display:"flex",alignItems:"baseline",justifyContent:"space-between",flexWrap:"wrap",gap:8,marginBottom:4}}>
       <div>
-        <div style=${{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:C.accent,fontWeight:700}}>Ruhestand · Schrickel · Rente ab 63</div>
+        <div style=${{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:C.green,fontWeight:700}}>Ruhestand · Schrickel · Rente ab 63</div>
         <h1 style=${{margin:"2px 0 0",fontSize:26,letterSpacing:-.8,fontWeight:800}}>Cashflow-Cockpit</h1>
       </div>
       <div style=${{display:"flex",gap:8,flexWrap:"wrap"}}>
-        <button onClick=${()=>setNet(!net)} style=${{border:`1px solid ${net?C.accent:C.hairline}`,background:net?C.accent:C.surface,color:net?"#fff":C.inkSoft,borderRadius:8,padding:"7px 12px",fontSize:12,cursor:"pointer"}}>${net?"Netto":"Brutto"}</button>
-        <button onClick=${exportCSV} style=${{border:"none",background:C.ink,color:"#fff",borderRadius:8,padding:"7px 12px",fontSize:12,cursor:"pointer",fontWeight:600}}>CSV</button>
-        <button onClick=${reset} style=${{border:`1px solid ${C.hairline}`,background:C.surface,color:C.inkSoft,borderRadius:8,padding:"7px 12px",fontSize:12,cursor:"pointer"}}>Reset</button>
+        ${btn(net?"Netto":"Brutto",()=>setNet(!net),net?C.green:C.surface,net?"#fff":C.soft)}
+        ${btn("CSV",csv,C.ink,"#fff")}
+        ${btn("Reset",()=>setRows(ROWS0),C.surface)}
       </div>
     </div>
-    <p style=${{margin:"2px 0 16px",color:C.inkSoft,fontSize:13}}>Monatliche Einkünfte · ${net?"netto (Schätzung)":"brutto"}</p>
+    <p style=${{margin:"2px 0 16px",color:C.soft,fontSize:13}}>Monatliche Einkunfte · ${net?"netto (Schätzung)":"brutto"}</p>
 
-    <!-- Steuer & PKV -->
-    <div style=${{background:C.surface,border:`1px solid ${C.hairline}`,borderRadius:14,padding:"12px 16px",marginBottom:16}}>
-      <button onClick=${()=>setOpenTax(!openTax)} style=${{border:"none",background:"none",cursor:"pointer",padding:0,fontSize:11,letterSpacing:1,textTransform:"uppercase",color:C.inkSoft,fontWeight:700}}>Steuer & PKV ${openTax?"▾":"▸"}</button>
-      ${openTax&&html`<div style=${{display:"flex",gap:12,flexWrap:"wrap",marginTop:12}}>
-        <${Field} label="Grenzsteuersatz" suffix="%" step="0.5" value=${estRate} onChange=${setEstRate} w="1 1 120px"/>
-        <${Field} label="PKV du/Monat" suffix="€" step="1" value=${pkvSelf} onChange=${setPkvSelf} w="1 1 130px"/>
-        <${Field} label="PKV Tochter (bis 63)" suffix="€" step="1" value=${pkvKid} onChange=${setPkvKid} w="1 1 140px"/>
-        <p style=${{flex:"2 1 260px",margin:0,fontSize:11,color:C.inkSoft,lineHeight:1.5}}>PKV du 780 € (dauerhaft), Tochter 396 € bis Alter 63. DRV-Zuschuss ≈ 241 € ab 63. ~947 € steuerlich absetzbar.</p>
+    <div style=${{background:C.surface,border:"1px solid "+C.line,borderRadius:14,padding:"12px 16px",marginBottom:16}}>
+      <button onClick=${()=>setTax(!tax)} style=${{border:"none",background:"none",cursor:"pointer",padding:0,fontSize:11,letterSpacing:1,textTransform:"uppercase",color:C.soft,fontWeight:700}}>Steuer &amp; PKV ${tax?"▾":"▸"}</button>
+      ${tax&&html`<div style=${{display:"flex",gap:12,flexWrap:"wrap",marginTop:12}}>
+        <${Inp} label="Grenzsteuersatz" sfx="%" step="0.5" val=${esr} set=${setEsr} w="1 1 120px"/>
+        <${Inp} label="PKV du/Monat" sfx="€" val=${pku} set=${setPku} w="1 1 130px"/>
+        <${Inp} label="PKV Tochter (bis 63)" sfx="€" val=${pkt} set=${setPkt} w="1 1 140px"/>
+        <p style=${{flex:"2 1 260px",margin:0,fontSize:11,color:C.soft,lineHeight:1.5}}>PKV du 780€ dauerhaft, Tochter 396€ bis Alter 63. DRV-Zuschuss ab 63 ca. 241€.</p>
       </div>`}
     </div>
 
-    <!-- Hero-Karten -->
     <div style=${{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12,marginBottom:16}}>
-      ${totals.map((s,i)=>html`<div key=${s.label} style=${{background:C.surface,border:`1px solid ${C.hairline}`,borderRadius:14,padding:"14px 16px"}}>
-        <div style=${{fontSize:11,color:C.inkSoft}}>${s.label}${s.age===startAge?" · heute":` · ${curYear+(s.age-startAge)}`}</div>
-        <div style=${{fontFamily:mono,fontSize:22,fontWeight:700,letterSpacing:-1,marginTop:4,color:i===SCEN.length-1?C.accent:C.ink}}>${eur2(s.view)}</div>
-        <div style=${{fontSize:11,color:C.inkSoft,marginTop:2}}>≈ ${eur(s.view*12)} / Jahr</div>
+      ${tots.map((s,i)=>html`<div key=${s.l} style=${{background:C.surface,border:"1px solid "+C.line,borderRadius:14,padding:"14px 16px"}}>
+        <div style=${{fontSize:11,color:C.soft}}>${s.l}${s.a===age0?" · heute":` · ${yr0+(s.a-age0)}`}</div>
+        <div style=${{fontFamily:mono,fontSize:22,fontWeight:700,letterSpacing:-1,marginTop:4,color:i===SCEN.length-1?C.green:C.ink}}>${f2(s.vw)}</div>
+        <div style=${{fontSize:11,color:C.soft,marginTop:2}}>ca. ${f0(s.vw*12)} / Jahr</div>
       </div>`)}
     </div>
 
-    <!-- Stapelbalken -->
-    <div style=${{background:C.surface,border:`1px solid ${C.hairline}`,borderRadius:14,padding:"16px 12px 8px",marginBottom:16}}>
-      <div style=${{height:320,width:"100%"}}>
-        <${ResponsiveContainer}>
-          <${BarChart} data=${chartData} margin=${{top:28,right:8,left:0,bottom:0}} barCategoryGap="26%">
-            <${CartesianGrid} strokeDasharray="3 3" vertical=${false} stroke=${C.hairline}/>
-            <${XAxis} dataKey="szenario" tick=${{fontSize:11,fill:C.ink}} axisLine=${{stroke:C.hairline}} tickLine=${false}/>
-            <${YAxis} tickFormatter=${v=>`${(v/1000).toFixed(0)}k`} tick=${{fontSize:10,fill:C.inkSoft,fontFamily:mono}} axisLine=${false} tickLine=${false} width=${42}/>
-            <${Tooltip} content=${TBox} cursor=${{fill:"rgba(14,110,98,.06)"}}/>
-            ${rows.map((r,i)=>html`<${Bar} key=${r.id} dataKey=${r.id} stackId="a" fill=${r.color} radius=${i===rows.length-1?[5,5,0,0]:0} maxBarSize=${120}>
-              ${i===rows.length-1&&html`<${LabelList} position="top" valueAccessor=${e=>{const d=e.payload,s=rows.reduce((x,x2)=>x+(d[x2.id]||0),0);return s>0?eur(s):"";}} style=${{fill:C.ink,fontSize:12,fontWeight:700,fontFamily:mono}}/>`}
-            </${Bar}>`)}
-          </${BarChart}>
-        </${ResponsiveContainer}>
-      </div>
+    <div style=${{background:C.surface,border:"1px solid "+C.line,borderRadius:14,padding:"16px 12px 8px",marginBottom:16}}>
+      <${StackedBar} data=${cdat} rows=${rows}/>
     </div>
 
-    <!-- Eingabemaske -->
-    <div style=${{background:C.surface,border:`1px solid ${C.hairline}`,borderRadius:14,overflow:"hidden"}}>
-      <div style=${{padding:"12px 16px",borderBottom:`1px solid ${C.hairline}`,fontSize:11,letterSpacing:1,textTransform:"uppercase",color:C.inkSoft,fontWeight:700}}>Eingabemaske · Klassen</div>
+    <div style=${{background:C.surface,border:"1px solid "+C.line,borderRadius:14,overflow:"hidden"}}>
+      <div style=${{padding:"12px 16px",borderBottom:"1px solid "+C.line,fontSize:11,letterSpacing:1,textTransform:"uppercase",color:C.soft,fontWeight:700}}>Eingabemaske</div>
       ${rows.map(r=>{
-        const g=gross(r),n=netM(r),shown=net?n:g;
-        return html`<div key=${r.id} style=${{padding:"14px 16px",borderBottom:`1px solid ${C.hairline}`,borderLeft:`4px solid ${r.color}`}}>
+        const g=gros(r),n=netM(r),sh=net?n:g;
+        return html`<div key=${r.id} style=${{padding:"14px 16px",borderBottom:"1px solid "+C.line,borderLeft:`4px solid ${r.col}`}}>
           <div style=${{display:"flex",gap:14,flexWrap:"wrap",alignItems:"flex-start"}}>
             <div style=${{flex:"1 1 180px",minWidth:170}}>
               <div style=${{fontWeight:700,fontSize:14}}>${r.name}</div>
-              <div style=${{fontSize:11,color:C.inkSoft,marginTop:3,lineHeight:1.4}}>${r.note}</div>
+              <div style=${{fontSize:11,color:C.soft,marginTop:3,lineHeight:1.4}}>${r.note}</div>
               <div style=${{marginTop:8,display:"flex",alignItems:"center",gap:8}}>
-                <${AgeSeg} value=${r.startAge} onChange=${a=>update(r.id,{startAge:a})} color=${r.color}/>
-                ${r.endAge!=null&&html`<span style=${{fontSize:10,color:C.inkSoft,background:C.page,borderRadius:999,padding:"3px 9px"}}>bis ${r.endAge}</span>`}
+                <${AgePill} val=${r.s0} set=${a=>upd(r.id,{s0:a})} col=${r.col}/>
+                ${r.e9!=null&&html`<span style=${{fontSize:10,color:C.soft,background:C.page,borderRadius:999,padding:"3px 9px"}}>bis ${r.e9}</span>`}
               </div>
             </div>
             <div style=${{display:"flex",gap:10,flex:"1 1 240px",flexWrap:"wrap",alignItems:"flex-end"}}>
-              ${r.kind==="capital"
-                ?html`<${Field} label="Kapital" suffix="€" step="1" value=${r.capital} onChange=${v=>update(r.id,{capital:v})} w="1 1 130px"/>
-                      <${Field} label="Rate p.a." suffix="%" step="0.1" value=${r.rate} onChange=${v=>update(r.id,{rate:v})} w="0 1 90px"/>`
-                :html`<${Field} label="Betrag / Monat" suffix="€" value=${r.value} onChange=${v=>update(r.id,{value:v})} w="1 1 160px"/>`}
+              ${r.kind==="cap"
+                ?html`<${Inp} label="Kapital" sfx="€" val=${r.capital} set=${v=>upd(r.id,{capital:v})} w="1 1 120px"/>
+                      <${Inp} label="Rate p.a." sfx="%" step="0.1" val=${r.rate} set=${v=>upd(r.id,{rate:v})} w="0 1 80px"/>`
+                :html`<${Inp} label="Betrag/Monat" sfx="€" val=${r.val} set=${v=>upd(r.id,{val:v})} w="1 1 150px"/>`}
               <div style=${{minWidth:100,textAlign:"right",paddingBottom:8}}>
-                <div style=${{fontSize:10,color:C.inkSoft,textTransform:"uppercase",letterSpacing:.6}}>${net?"netto/M":"brutto/M"}</div>
-                <div style=${{fontFamily:mono,fontSize:15,fontWeight:700,color:shown>0?C.ink:C.inkSoft}}>${eur2(shown)}</div>
-                ${net&&r.kind!=="capital"&&g>0&&html`<div style=${{fontSize:10,color:C.inkSoft,fontFamily:mono}}>von ${eur(g)}</div>`}
+                <div style=${{fontSize:10,color:C.soft,textTransform:"uppercase",letterSpacing:.6}}>${net?"netto/M":"brutto/M"}</div>
+                <div style=${{fontFamily:mono,fontSize:15,fontWeight:700,color:sh>0?C.ink:C.soft}}>${f2(sh)}</div>
+                ${net&&r.kind!=="cap"&&g>0&&html`<div style=${{fontSize:10,color:C.soft,fontFamily:mono}}>von ${f0(g)}</div>`}
               </div>
             </div>
           </div>
-          ${net&&html`<div style=${{display:"flex",gap:10,flexWrap:"wrap",marginTop:10,paddingTop:10,borderTop:`1px dashed ${C.hairline}`}}>
-            ${(r.kind==="capital"||r.kind==="drawdown")
-              ?html`<${Field} label="Kapitalsteuer" suffix="%" step="0.1" value=${r.kapPct} onChange=${v=>update(r.id,{kapPct:v})} w="0 1 120px"/>
-                    <span style=${{fontSize:11,color:C.inkSoft,alignSelf:"flex-end",paddingBottom:8}}>Steuer −${eur(g*num(r.kapPct)/100)}/M</span>`
-              :html`<${Field} label="Steuerpfl. %" suffix="%" step="1" value=${r.taxablePct} onChange=${v=>update(r.id,{taxablePct:v})} w="0 1 110px"/>
-                    ${r.overrideEst!=null&&html`<${Field} label="Lohnsteuer %" suffix="%" step="0.5" value=${r.overrideEst} onChange=${v=>update(r.id,{overrideEst:v})} w="0 1 100px"/>`}
-                    <${Field} label="KV+PV+SV %" suffix="%" step="0.1" value=${r.svPct} onChange=${v=>update(r.id,{svPct:v})} w="0 1 100px"/>
-                    <span style=${{fontSize:11,color:C.inkSoft,alignSelf:"flex-end",paddingBottom:8}}>ESt −${eur(g*(num(r.taxablePct)/100)*((r.overrideEst!=null?num(r.overrideEst):num(estRate))/100))} · SV −${eur(g*(num(r.svPct)/100))}</span>`}
+          ${net&&html`<div style=${{display:"flex",gap:10,flexWrap:"wrap",marginTop:10,paddingTop:10,borderTop:"1px dashed "+C.line}}>
+            ${(r.kind==="cap"||r.kind==="dwn")
+              ?html`<${Inp} label="Kapitalsteuer %" sfx="%" step="0.1" val=${r.kap} set=${v=>upd(r.id,{kap:v})} w="0 1 120px"/>
+                    <span style=${{fontSize:11,color:C.soft,alignSelf:"flex-end",paddingBottom:8}}>Steuer -${f0(g*num(r.kap)/100)}/M</span>`
+              :html`<${Inp} label="Steuerpfl. %" sfx="%" step="1" val=${r.ep} set=${v=>upd(r.id,{ep:v})} w="0 1 100px"/>
+                    ${r.ls!=null&&html`<${Inp} label="Lohnsteuer %" sfx="%" step="0.5" val=${r.ls} set=${v=>upd(r.id,{ls:v})} w="0 1 100px"/>`}
+                    <${Inp} label="KV+PV+SV %" sfx="%" step="0.1" val=${r.sv} set=${v=>upd(r.id,{sv:v})} w="0 1 100px"/>
+                    <span style=${{fontSize:11,color:C.soft,alignSelf:"flex-end",paddingBottom:8}}>ESt -${f0(g*(num(r.ep)/100)*((r.ls!=null?num(r.ls):num(esr))/100))} · SV -${f0(g*(num(r.sv)/100))}</span>`}
           </div>`}
         </div>`;
       })}
-      <!-- Summenzeile -->
       <div style=${{padding:"14px 16px",background:"#F7F9FA",display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
-        <span style=${{fontWeight:700}}>Summe ${net?"netto":"brutto"} / Monat</span>
+        <span style=${{fontWeight:700}}>Summe ${net?"netto":"brutto"}/Monat</span>
         <span style=${{display:"flex",gap:16,fontSize:13,flexWrap:"wrap"}}>
-          ${totals.map((t,i)=>html`<span key=${t.label} style=${{color:C.inkSoft}}>${t.label} <b style=${{color:i===SCEN.length-1?C.accent:C.ink,fontFamily:mono}}>${eur2(t.view)}</b></span>`)}
+          ${tots.map((t,i)=>html`<span key=${t.l} style=${{color:C.soft}}>${t.l} <b style=${{color:i===SCEN.length-1?C.green:C.ink,fontFamily:mono}}>${f2(t.vw)}</b></span>`)}
         </span>
       </div>
-      ${(num(pkvSelf)>0||num(pkvKid)>0)&&html`<div style=${{padding:"12px 16px",background:"#FDF7F2",borderTop:`1px solid ${C.hairline}`,display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
-        <span style=${{fontWeight:700,color:"#9A5B2A"}}>Verfügbar nach PKV</span>
+      ${(num(pku)>0||num(pkt)>0)&&html`<div style=${{padding:"12px 16px",background:"#FDF7F2",borderTop:"1px solid "+C.line,display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
+        <span style=${{fontWeight:700,color:"#9A5B2A"}}>Verfugbar nach PKV</span>
         <span style=${{display:"flex",gap:16,fontSize:13,flexWrap:"wrap"}}>
-          ${totals.map((t,i)=>html`<span key=${t.label} style=${{color:C.inkSoft}}>${t.label} <b style=${{color:i===SCEN.length-1?C.accent:"#9A5B2A",fontFamily:mono}}>${eur2(t.avail)}</b><span style=${{fontSize:10}}> (−${eur(t.pkv)}${t.zuschuss>0?` +${eur(t.zuschuss)} Zusch.`:""})</span></span>`)}
+          ${tots.map((t,i)=>html`<span key=${t.l} style=${{color:C.soft}}>${t.l} <b style=${{color:i===SCEN.length-1?C.green:"#9A5B2A",fontFamily:mono}}>${f2(t.av)}</b><span style=${{fontSize:10}}> (-${f0(t.pk)}${t.zu>0?` +${f0(t.zu)} Zusch.`:""})</span></span>`)}
         </span>
       </div>`}
     </div>
 
-    <!-- Depot-Tracking -->
-    <div style=${{background:C.surface,border:`1px solid ${C.hairline}`,borderRadius:14,overflow:"hidden",marginTop:16}}>
-      <div style=${{padding:"12px 16px",borderBottom:`1px solid ${C.hairline}`,fontSize:11,letterSpacing:1,textTransform:"uppercase",color:C.inkSoft,fontWeight:700}}>Depot-Tracking · Vermögensentwicklung</div>
-      ${!loaded?html`<div style=${{padding:24,textAlign:"center",color:C.inkSoft,fontSize:12}}>Lädt…</div>`:html`<div>
-        <div style=${{padding:"14px 16px",borderBottom:`1px solid ${C.hairline}`,display:"flex",gap:10,flexWrap:"wrap",alignItems:"flex-end"}}>
+    <div style=${{background:C.surface,border:"1px solid "+C.line,borderRadius:14,overflow:"hidden",marginTop:16}}>
+      <div style=${{padding:"12px 16px",borderBottom:"1px solid "+C.line,fontSize:11,letterSpacing:1,textTransform:"uppercase",color:C.soft,fontWeight:700}}>Depot-Tracking</div>
+      ${!rdy?html`<div style=${{padding:24,textAlign:"center",color:C.soft}}>Lädt...</div>`:html`<div>
+        <div style=${{padding:"14px 16px",borderBottom:"1px solid "+C.line,display:"flex",gap:10,flexWrap:"wrap",alignItems:"flex-end"}}>
           <label style=${{display:"block",flex:"1 1 130px"}}>
-            <span style=${{display:"block",fontSize:10,letterSpacing:.6,textTransform:"uppercase",color:C.inkSoft,marginBottom:3}}>Datum</span>
-            <input type="date" value=${fDate} onInput=${e=>setFDate(e.target.value)}
-              style=${{width:"100%",border:`1px solid ${C.hairline}`,borderRadius:8,background:"#FBFCFD",padding:"8px 10px",fontFamily:mono,fontSize:13,color:C.ink}}/>
+            <span style=${{display:"block",fontSize:10,letterSpacing:.6,textTransform:"uppercase",color:C.soft,marginBottom:3}}>Datum</span>
+            <input type="date" value=${fd} onInput=${e=>setFd(e.target.value)} style=${{width:"100%",border:"1px solid "+C.line,borderRadius:8,background:"#FBFCFD",padding:"8px 10px",fontFamily:mono,fontSize:13,color:C.ink}}/>
           </label>
-          <${Field} label="Trade Republic" suffix="€" step="1" value=${fD1} onChange=${setFD1} w="1 1 120px"/>
-          <${Field} label="Comdirect" suffix="€" step="1" value=${fD2} onChange=${setFD2} w="1 1 120px"/>
-          <${Field} label="Dividenden 12M" suffix="€" step="1" value=${fDiv} onChange=${setFDiv} w="1 1 120px"/>
-          <button onClick=${addSnap} style=${{border:"none",background:C.accent,color:"#fff",borderRadius:8,padding:"9px 16px",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Eintrag</button>
+          <${Inp} label="Trade Republic" sfx="€" val=${f1} set=${setF1} w="1 1 110px"/>
+          <${Inp} label="Comdirect" sfx="€" val=${f2} set=${setF2} w="1 1 110px"/>
+          <${Inp} label="Dividenden 12M" sfx="€" val=${fv} set=${setFv} w="1 1 110px"/>
+          <button onClick=${addS} style=${{border:"none",background:C.green,color:"#fff",borderRadius:8,padding:"9px 16px",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Eintrag</button>
         </div>
-        ${trackData.length>1&&html`<div style=${{padding:"16px 12px 4px"}}>
-          <div style=${{height:180,width:"100%"}}>
-            <${ResponsiveContainer}>
-              <${LineChart} data=${trackData} margin=${{top:8,right:8,left:0,bottom:0}}>
-                <${CartesianGrid} strokeDasharray="3 3" vertical=${false} stroke=${C.hairline}/>
-                <${XAxis} dataKey="date" tick=${{fontSize:10,fill:C.inkSoft}} axisLine=${{stroke:C.hairline}} tickLine=${false}/>
-                <${YAxis} tickFormatter=${v=>`${(v/1000).toFixed(0)}k`} tick=${{fontSize:10,fill:C.inkSoft}} axisLine=${false} tickLine=${false} width=${42}/>
-                <${Tooltip} formatter=${v=>eur2(v)} contentStyle=${{fontSize:12,borderRadius:8}}/>
-                <${Legend} wrapperStyle=${{fontSize:11}}/>
-                <${Line} type="monotone" dataKey="total" name="Gesamt" stroke=${C.ink} strokeWidth=${2} dot=${{r:3}}/>
-                <${Line} type="monotone" dataKey="d1" name="Trade Republic" stroke="#1F8A82" strokeWidth=${1.5} dot=${{r:2}}/>
-                <${Line} type="monotone" dataKey="d2" name="Comdirect" stroke="#6E8F4E" strokeWidth=${1.5} dot=${{r:2}}/>
-              </${LineChart}>
-            </${ResponsiveContainer}>
-          </div>
-        </div>`}
-        ${[...sorted].reverse().map((s,i,arr)=>{
-          const total=num(s.d1)+num(s.d2),prev=arr[i+1];
-          const delta=prev?total-(num(prev.d1)+num(prev.d2)):null;
-          return html`<div key=${s.date} style=${{padding:"10px 16px",borderBottom:`1px solid ${C.hairline}`,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-            <span style=${{fontSize:11,color:C.inkSoft,minWidth:78}}>${fmtDate(s.date)}</span>
-            <span style=${{fontSize:12,fontFamily:mono,color:C.inkSoft,minWidth:90}}>TR ${eur(s.d1)}</span>
-            <span style=${{fontSize:12,fontFamily:mono,color:C.inkSoft,minWidth:90}}>CD ${eur(s.d2)}</span>
-            <span style=${{fontSize:13,fontFamily:mono,fontWeight:700,color:C.ink,flex:1,textAlign:"right"}}>${eur(total)}</span>
-            ${delta!==null&&html`<span style=${{fontSize:11,fontFamily:mono,color:delta>=0?C.accent:"#B23A3A",minWidth:70,textAlign:"right"}}>${delta>=0?"+":""}${eur(delta)}</span>`}
-            <button onClick=${()=>delSnap(s.date)} style=${{border:"none",background:"transparent",color:C.inkSoft,cursor:"pointer",fontSize:14,padding:"2px 6px"}}>✕</button>
+        ${ldat.length>=2&&html`<div style=${{padding:"12px 12px 4px"}}><${LineChart2} data=${ldat}/></div>`}
+        ${[...srtS].reverse().map((s,i,arr)=>{
+          const tot=num(s.d1)+num(s.d2),prev=arr[i+1],dl=prev?tot-(num(prev.d1)+num(prev.d2)):null;
+          return html`<div key=${s.date} style=${{padding:"10px 16px",borderBottom:"1px solid "+C.line,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+            <span style=${{fontSize:11,color:C.soft,minWidth:78}}>${dayStr(s.date)}</span>
+            <span style=${{fontSize:12,fontFamily:mono,color:C.soft,minWidth:88}}>TR ${f0(s.d1)}</span>
+            <span style=${{fontSize:12,fontFamily:mono,color:C.soft,minWidth:88}}>CD ${f0(s.d2)}</span>
+            <span style=${{fontSize:13,fontFamily:mono,fontWeight:700,color:C.ink,flex:1,textAlign:"right"}}>${f0(tot)}</span>
+            ${dl!==null&&html`<span style=${{fontSize:11,fontFamily:mono,color:dl>=0?C.green:"#B23A3A",minWidth:70,textAlign:"right"}}>${dl>=0?"+":""}${f0(dl)}</span>`}
+            <button onClick=${()=>delS(s.date)} style=${{border:"none",background:"transparent",color:C.soft,cursor:"pointer",fontSize:14,padding:"2px 6px"}}>x</button>
           </div>`;
         })}
       </div>`}
     </div>
 
-    <!-- Depot-Projektion -->
-    <div style=${{background:C.surface,border:`1px solid ${C.hairline}`,borderRadius:14,overflow:"hidden",marginTop:16}}>
-      <div style=${{padding:"12px 16px",borderBottom:`1px solid ${C.hairline}`,fontSize:11,letterSpacing:1,textTransform:"uppercase",color:C.inkSoft,fontWeight:700}}>Depot-Projektion · Alter ${startAge} bis 85</div>
-      <div style=${{padding:"14px 16px",borderBottom:`1px solid ${C.hairline}`,display:"flex",gap:10,flexWrap:"wrap"}}>
-        <${Field} label="Startkapital" suffix="€" step="1" value=${projStart} onChange=${setProjStart} w="1 1 140px"/>
-        <${Field} label="Rendite p.a." suffix="%" step="0.1" value=${projRate} onChange=${setProjRate} w="0 1 100px"/>
-        <${Field} label="Ein-/Auszahlung p.a." suffix="€" step="100" value=${projFlow} onChange=${setProjFlow} w="1 1 150px"/>
-        <${Field} label="ab Alter" suffix="J" step="1" value=${projWithdrawAge} onChange=${setProjWithdrawAge} w="0 1 90px"/>
-        <${Field} label="Inflation p.a." suffix="%" step="0.1" value=${projInfl} onChange=${setProjInfl} w="0 1 100px"/>
+    <div style=${{background:C.surface,border:"1px solid "+C.line,borderRadius:14,overflow:"hidden",marginTop:16}}>
+      <div style=${{padding:"12px 16px",borderBottom:"1px solid "+C.line,fontSize:11,letterSpacing:1,textTransform:"uppercase",color:C.soft,fontWeight:700}}>Depot-Projektion · Alter ${age0} bis 85</div>
+      <div style=${{padding:"14px 16px",borderBottom:"1px solid "+C.line,display:"flex",gap:10,flexWrap:"wrap"}}>
+        <${Inp} label="Startkapital" sfx="€" val=${ps} set=${setPs} w="1 1 140px"/>
+        <${Inp} label="Rendite p.a." sfx="%" step="0.1" val=${pr} set=${setPr} w="0 1 100px"/>
+        <${Inp} label="Auszahlung p.a." sfx="€" step="100" val=${pf} set=${setPf} w="1 1 140px"/>
+        <${Inp} label="ab Alter" sfx="J" val=${pw} set=${setPw} w="0 1 90px"/>
+        <${Inp} label="Inflation p.a." sfx="%" step="0.1" val=${pi} set=${setPi} w="0 1 100px"/>
       </div>
-      <div style=${{padding:"12px 12px 4px"}}>
-        <div style=${{height:240,width:"100%"}}>
-          <${ResponsiveContainer}>
-            <${ComposedChart} data=${projection} margin=${{top:24,right:8,left:0,bottom:0}}>
-              <${CartesianGrid} strokeDasharray="3 3" vertical=${false} stroke=${C.hairline}/>
-              <${XAxis} dataKey="age" tick=${{fontSize:11,fill:C.ink}} axisLine=${{stroke:C.hairline}} tickLine=${false}/>
-              <${YAxis} tickFormatter=${v=>`${(v/1000).toFixed(0)}k`} tick=${{fontSize:10,fill:C.inkSoft,fontFamily:mono}} axisLine=${false} tickLine=${false} width=${42}/>
-              <${Tooltip} formatter=${(v,n)=>[eur(v),n==="nominal"?"Nominal":"Real"]} labelFormatter=${a=>{const p=projection.find(x=>x.age===a);return `Alter ${a} · ${p?p.year:""}`;}} contentStyle=${{fontSize:12,borderRadius:8}}/>
-              <${Legend} wrapperStyle=${{fontSize:11}} formatter=${v=>v==="nominal"?"Nominal":"Real (Kaufkraft)"}/>
-              <${Bar} dataKey="nominal" fill=${C.accent} radius=${[5,5,0,0]} maxBarSize=${56}>
-                <${LabelList} dataKey="nominal" position="top" formatter=${v=>eur(v)} style=${{fill:C.ink,fontSize:10,fontWeight:700,fontFamily:mono}}/>
-              </${Bar}>
-              <${Line} type="monotone" dataKey="real" stroke="#9A5B2A" strokeWidth=${2} dot=${{r:3}}/>
-            </${ComposedChart}>
-          </${ResponsiveContainer}>
-        </div>
-      </div>
+      <div style=${{padding:"12px 12px 4px"}}><${ProjChart} data=${proj}/></div>
       <div style=${{padding:"4px 16px 14px"}}>
-        ${projection.map(p=>html`<div key=${p.age} style=${{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:`1px solid ${C.hairline}`,flexWrap:"wrap"}}>
+        ${proj.map(p=>html`<div key=${p.age} style=${{display:"flex",alignItems:"center",gap:10,padding:"7px 0",borderBottom:"1px solid "+C.line,flexWrap:"wrap"}}>
           <span style=${{fontSize:12,fontWeight:700,color:C.ink,minWidth:70}}>Alter ${p.age}</span>
-          <span style=${{fontSize:11,color:C.inkSoft,minWidth:50}}>${p.year}</span>
-          <span style=${{fontFamily:mono,fontSize:13,fontWeight:700,color:C.ink,flex:1,textAlign:"right"}}>${eur(p.nominal)}</span>
-          <span style=${{fontFamily:mono,fontSize:11,color:"#9A5B2A",minWidth:110,textAlign:"right"}}>real ${eur(p.real)}</span>
+          <span style=${{fontSize:11,color:C.soft,minWidth:50}}>${p.year}</span>
+          <span style=${{fontFamily:mono,fontSize:13,fontWeight:700,color:C.ink,flex:1,textAlign:"right"}}>${f0(p.nom)}</span>
+          <span style=${{fontFamily:mono,fontSize:11,color:"#9A5B2A",minWidth:110,textAlign:"right"}}>real ${f0(p.real)}</span>
         </div>`)}
       </div>
     </div>
 
-    <p style=${{fontSize:11,color:C.inkSoft,marginTop:14,lineHeight:1.5}}>
-      PKV (Hallesche): kein gesetzlicher KV/PV-Abzug. DRV-Zuschuss ab 63 ≈ 241 €. Depot-Projektion: Zinseszins-Hochrechnung, keine Prognose. Keine Steuer-, Anlage- oder Rechtsberatung.
-    </p>
+    <p style=${{fontSize:11,color:C.soft,marginTop:14,lineHeight:1.5}}>PKV (Hallesche): kein gesetzlicher KV/PV-Abzug. DRV-Zuschuss ab 63 ca. 241€. Depot-Projektion: Zinseszins-Hochrechnung, keine Prognose. Keine Steuer-, Anlage- oder Rechtsberatung.</p>
   </div>
 </div>`;
 }
 
 try{
-  const root=ReactDOM.createRoot(document.getElementById("root"));
-  root.render(html`<${CashflowCockpit}/>`);
+  ReactDOM.createRoot(document.getElementById("root")).render(html`<${App}/>`);
   document.getElementById("splash").remove();
-}catch(err){
-  document.getElementById("splash").innerHTML=`<p style="color:red;padding:20px;text-align:center">Fehler: ${err.message}</p>`;
+}catch(e){
+  document.getElementById("splash").innerHTML="<p style='color:red;padding:20px;text-align:center;font-size:14px'>Fehler: "+e.message+"</p>";
+  console.error(e);
 }
 </script>
 </body>
