@@ -2,366 +2,412 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Cashflow">
 <meta name="theme-color" content="#0E6E62">
-<title>Cashflow-Cockpit</title>
+<title>Cashflow-Cockpit v5</title>
 <link rel="manifest" href="manifest.json">
 <style>
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{margin:0;background:#EEF1F4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
-#splash{position:fixed;inset:0;background:#EEF1F4;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999}
-#splash h2{font-size:22px;font-weight:800;color:#15202B;margin:12px 0 4px}
-#splash p{font-size:13px;color:#5A6B79;margin:0}
-.spin{width:36px;height:36px;border:3px solid #DCE3E9;border-top-color:#0E6E62;border-radius:50%;animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-[v-cloak]{display:none}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+body{background:#EEF1F4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#15202B}
+h1{font-size:24px;font-weight:800;letter-spacing:-.5px}
+.card{background:#fff;border:1px solid #DCE3E9;border-radius:14px;overflow:hidden;margin-bottom:14px}
+.card-head{padding:11px 15px;border-bottom:1px solid #DCE3E9;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#5A6B79;font-weight:700}
+.btn{border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer;border:1px solid #DCE3E9;background:#fff;color:#5A6B79}
+.btn-g{background:#0E6E62;color:#fff;border-color:#0E6E62}
+.btn-k{background:#15202B;color:#fff;border-color:#15202B}
+.row-in{border-left:4px solid #ccc;border-bottom:1px solid #DCE3E9;padding:12px 15px}
+label span.lbl{display:block;font-size:9px;letter-spacing:.5px;text-transform:uppercase;color:#5A6B79;margin-bottom:2px}
+input[type=number]{width:100%;border:1px solid #DCE3E9;border-radius:7px;padding:7px 9px;font-size:13px;background:#FBFCFD;color:#15202B;text-align:right;font-family:ui-monospace,monospace;outline:none}
+input[type=date]{width:100%;border:1px solid #DCE3E9;border-radius:7px;padding:7px 9px;font-size:13px;background:#FBFCFD;color:#15202B;outline:none}
+.mono{font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.soft{color:#5A6B79}
+.green{color:#0E6E62}
+.wrap{max-width:880px;margin:0 auto;padding:18px 14px 52px}
+.grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:14px}
+.scen-card{background:#fff;border:1px solid #DCE3E9;border-radius:14px;padding:13px 15px}
+.pills{display:inline-flex;border:1px solid #DCE3E9;border-radius:999px;overflow:hidden}
+.pill{border:none;cursor:pointer;padding:4px 10px;font-size:11px;background:transparent;color:#5A6B79}
+.sum-row{display:flex;justify-content:space-between;padding:12px 15px;background:#F7F9FA;flex-wrap:wrap;gap:8px;font-weight:700;font-size:13px}
+.avail-row{display:flex;justify-content:space-between;padding:10px 15px;background:#FDF7F2;flex-wrap:wrap;gap:8px;font-weight:700;font-size:13px;color:#9A5B2A}
+.snap-row{display:flex;align-items:center;gap:8px;padding:9px 15px;border-bottom:1px solid #DCE3E9;flex-wrap:wrap;font-size:12px}
+.proj-row{display:flex;align-items:center;gap:8px;padding:7px 15px;border-bottom:1px solid #DCE3E9}
+.age-label{font-size:10px;color:#5A6B79}
+.ver{position:fixed;bottom:2px;right:6px;font-size:9px;color:#bbb}
 </style>
 </head>
 <body>
-<div id="splash"><div class="spin"></div><h2>Cashflow-Cockpit</h2><p>Schrickel &middot; Ruhestandsplanung</p></div>
-<div id="root"></div>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js" crossorigin></script>
-<script>
-const{useState,useMemo,useEffect,useRef}=React;
-const html=htm.bind(React.createElement);
+<div class="wrap">
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+    <div>
+      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#0E6E62;font-weight:700">Ruhestand · Schrickel · Rente ab 63</div>
+      <h1>Cashflow-Cockpit</h1>
+    </div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap">
+      <button class="btn" id="netBtn" onclick="toggleNet()">Netto</button>
+      <button class="btn btn-k" onclick="exportCSV()">CSV</button>
+      <button class="btn" onclick="resetAll()">Reset</button>
+    </div>
+  </div>
+  <p class="soft" style="font-size:12px;margin-bottom:14px" id="modeLabel">Netto (Schätzung)</p>
 
-const C={page:"#EEF1F4",surface:"#FFFFFF",ink:"#15202B",soft:"#5A6B79",line:"#DCE3E9",green:"#0E6E62"};
-const mono="ui-monospace,SFMono-Regular,Menlo,monospace";
+  <div class="card">
+    <div class="card-head" onclick="toggleTax()" style="cursor:pointer" id="taxHead">Steuer &amp; PKV ▸</div>
+    <div id="taxPanel" style="display:none;padding:12px 15px">
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <label style="flex:1 1 110px"><span class="lbl">Grenzsteuersatz %</span><input type="number" step="0.5" id="iEsr" value="35" oninput="recalc()"></label>
+        <label style="flex:1 1 110px"><span class="lbl">PKV du €/Monat</span><input type="number" id="iPku" value="780" oninput="recalc()"></label>
+        <label style="flex:1 1 110px"><span class="lbl">PKV Tochter (bis 63) €</span><input type="number" id="iPkt" value="396" oninput="recalc()"></label>
+      </div>
+      <p class="soft" style="font-size:11px;margin-top:8px">PKV du 780€ dauerhaft · Tochter 396€ bis Alter 63 · DRV-Zuschuss ab 63 ca. 241€ · ~947€ steuerlich absetzbar</p>
+    </div>
+  </div>
+
+  <div class="grid4" id="scenCards"></div>
+
+  <div class="card">
+    <div class="card-head">Stapelbalken</div>
+    <div id="barChart" style="padding:8px 4px"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">Eingabemaske</div>
+    <div id="rowsContainer"></div>
+    <div class="sum-row"><span>Summe <span id="sumLabel">netto</span>/Monat</span><span id="sumLine"></span></div>
+    <div class="avail-row" id="availRow"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">Depot-Tracking</div>
+    <div style="padding:12px 15px;border-bottom:1px solid #DCE3E9">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <label style="flex:1 1 120px"><span class="lbl">Datum</span><input type="date" id="fDate"></label>
+        <label style="flex:1 1 100px"><span class="lbl">Trade Republic €</span><input type="number" id="fD1" placeholder="0"></label>
+        <label style="flex:1 1 100px"><span class="lbl">Comdirect €</span><input type="number" id="fD2" placeholder="0"></label>
+        <label style="flex:1 1 100px"><span class="lbl">Dividenden 12M €</span><input type="number" id="fDv" placeholder="0"></label>
+        <button class="btn btn-g" onclick="addSnap()" style="height:36px;margin-top:16px">+ Eintrag</button>
+      </div>
+    </div>
+    <div id="snapList"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">Depot-Projektion · Alter <span id="age0lbl">60</span> bis 85</div>
+    <div style="padding:12px 15px;border-bottom:1px solid #DCE3E9">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <label style="flex:1 1 130px"><span class="lbl">Startkapital €</span><input type="number" id="iPs" value="1400000" oninput="recalc()"></label>
+        <label style="flex:0 1 90px"><span class="lbl">Rendite p.a. %</span><input type="number" step="0.1" id="iPr" value="6" oninput="recalc()"></label>
+        <label style="flex:1 1 130px"><span class="lbl">Auszahlung p.a. €</span><input type="number" step="100" id="iPf" value="-30000" oninput="recalc()"></label>
+        <label style="flex:0 1 80px"><span class="lbl">ab Alter J</span><input type="number" id="iPw" value="63" oninput="recalc()"></label>
+        <label style="flex:0 1 90px"><span class="lbl">Inflation %</span><input type="number" step="0.1" id="iPi" value="2" oninput="recalc()"></label>
+      </div>
+    </div>
+    <div id="projChart" style="padding:8px 4px"></div>
+    <div id="projTable"></div>
+  </div>
+
+  <p class="soft" style="font-size:11px;line-height:1.5;margin-top:12px">PKV (Hallesche): kein gesetzlicher KV/PV-Abzug. Depot-Projektion: Zinseszins-Hochrechnung, keine Prognose. Keine Steuer-, Anlage- oder Rechtsberatung.</p>
+</div>
+<div class="ver">v5.0</div>
+
+<script>
+// Service Worker deregistrieren (räumt alten Cache auf)
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.getRegistrations().then(r=>r.forEach(sw=>sw.unregister()));
+}
+
+const BIRTH = new Date(1965,11,8);
+function ageNow(){const n=new Date();let a=n.getFullYear()-BIRTH.getFullYear();if(n.getMonth()-BIRTH.getMonth()<0||(n.getMonth()===BIRTH.getMonth()&&n.getDate()<BIRTH.getDate()))a--;return a;}
 
 const SCEN=[{l:"Alter 60",a:60},{l:"Alter 63",a:63},{l:"Alter 65",a:65},{l:"Alter 67",a:67}];
 
-const ROWS0=[
-  {id:"drv",  name:"DRV Rente",          col:"#3B5B7A",kind:"fix",val:2826.39,s0:63,ep:85,sv:0,note:"Volle Rente mit Ausgleich (109.474€). PKV=kein KV/PV."},
-  {id:"bosch",name:"bAV Bosch",           col:"#1F8A82",kind:"fix",val:8012.61,s0:60,ep:100,sv:0,note:"Netto=Brutto (PKV). 1.343€ steuerpflichtig (16,8%)."},
-  {id:"brose",name:"bAV Brose",           col:"#C2843B",kind:"fix",val:4451,   s0:67,ep:100,sv:0,note:"Ab Alter 67. Kontostand 31.12.2025: 53.414€."},
-  {id:"div",  name:"Dividenden (Depot)",  col:"#6E8F4E",kind:"cap",capital:1204676,rate:1.10,kap:17.3,s0:60,note:"TR 1.033.572 + Comdirect 171.387€. Rendite 1,10% brutto."},
-  {id:"zins", name:"Zinsen Barmittel",    col:"#7C6CA6",kind:"cap",capital:156400,rate:3.5,kap:26.375,s0:60,note:"Trade Republic 3,50% p.a."},
-  {id:"miete",name:"Miete",               col:"#94897A",kind:"fix",val:1200,   s0:60,ep:100,sv:0,note:"Mieteinnahmen brutto, voll steuerpflichtig."},
-  {id:"frau", name:"Gehalt Ehefrau (StKl5)",col:"#D4A14A",kind:"fix",val:4700, s0:60,e9:63,ep:100,sv:22.5,ls:32,note:"4.700€/M brutto. Steuerklasse 5, GKV. Endet Alter 63."},
-  {id:"bera", name:"Beratung",             col:"#4A7BA6",kind:"fix",val:16667, s0:60,e9:63,ep:100,sv:0,note:"200.000€/Jahr brutto bis Alter 63."},
-  {id:"entn", name:"Depot-Entnahme",       col:"#A4548C",kind:"dwn",val:4167,  s0:63,kap:15,note:"50.000€/Jahr ab Alter 63. Nur Gewinnanteil steuerpflichtig."},
+let ROWS=[
+  {id:"drv",  name:"DRV Rente",             col:"#3B5B7A",kind:"fix",val:2826.39,s0:63,ep:85,sv:0,ls:null,note:"Volle Rente mit Ausgleich (109.474€). PKV=kein KV/PV."},
+  {id:"bosch",name:"bAV Bosch",              col:"#1F8A82",kind:"fix",val:8012.61,s0:60,ep:17,sv:0,ls:null,note:"Netto=Brutto (PKV). 1.343€ steuerpflichtig."},
+  {id:"brose",name:"bAV Brose",              col:"#C2843B",kind:"fix",val:4451,   s0:67,ep:100,sv:0,ls:null,note:"Ab Alter 67. Konto 31.12.2025: 53.414€."},
+  {id:"div",  name:"Dividenden",             col:"#6E8F4E",kind:"cap",capital:1400000,rate:1.10,kap:17.3,s0:60,note:"TR+Comdirect 1.204.676€. Rendite 1,10%."},
+  {id:"zins", name:"Zinsen Barmittel",       col:"#7C6CA6",kind:"cap",capital:400000,rate:2.5,kap:26.375,s0:60,note:"Trade Republic 3,50% p.a."},
+  {id:"miete",name:"Miete",                  col:"#94897A",kind:"fix",val:1200,   s0:60,ep:100,sv:0,ls:null,note:"Mieteinnahmen brutto."},
+  {id:"frau", name:"Gehalt Ehefrau (StKl5)", col:"#D4A14A",kind:"fix",val:4700,   s0:60,e9:63,ep:100,sv:22.5,ls:32,note:"4.700€/M brutto. Steuerklasse 5. Endet Alter 63."},
+  {id:"bera", name:"Beratung",               col:"#4A7BA6",kind:"fix",val:16667,  s0:60,e9:63,ep:100,sv:0,ls:null,note:"200.000€/Jahr brutto bis Alter 63."},
+  {id:"entn", name:"Depot-Entnahme",         col:"#A4548C",kind:"dwn",val:2500,   s0:63,kap:15,note:"50.000€/Jahr ab Alter 63."},
 ];
+const ROWS0 = JSON.parse(JSON.stringify(ROWS));
 
-const f0=n=>new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n||0);
-const f2=n=>new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
-const num=v=>Number(v)||0;
-const gros=r=>r.kind==="cap"?(num(r.capital)*num(r.rate))/100/12:num(r.val);
-const live=(r,a)=>r.s0<=a&&(r.e9==null||a<r.e9);
-const dayStr=d=>{try{return new Date(d+"T12:00:00").toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"});}catch{return d;}};
-const today0=()=>new Date().toISOString().slice(0,10);
-const BIRTH=new Date(1965,11,8);
-const myAge=()=>{const n=new Date(),a=n.getFullYear()-BIRTH.getFullYear(),m=n.getMonth()-BIRTH.getMonth();return(m<0||(m===0&&n.getDate()<BIRTH.getDate()))?a-1:a;};
+const num = v => Number(v)||0;
+const f0 = n => new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n||0);
+const f2 = n => new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
+const escH = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-const stackPlugin={id:"stkTot",afterDatasetsDraw(ch){
-  const{ctx,data}=ch;
-  data.labels.forEach((_,xi)=>{
-    let sum=0;data.datasets.forEach(ds=>{sum+=ds.data[xi]||0;});
-    if(sum>0){
-      const lastMeta=ch.getDatasetMeta(data.datasets.length-1);
-      if(lastMeta&&lastMeta.data[xi]){
-        const bar=lastMeta.data[xi];
-        ctx.save();ctx.fillStyle="#15202B";ctx.font="bold 11px "+mono;ctx.textAlign="center";
-        ctx.fillText(f0(sum),bar.x,bar.y-4);ctx.restore();
-      }
-    }
-  });
-}};
+let netMode = true;
+let snapshots = [];
+const SK = 'cashflow-v5';
 
-function StackedBar({data,rows}){
-  const ref=useRef(null),ch=useRef(null);
-  useEffect(()=>{
-    if(!ref.current)return;
-    if(ch.current){ch.current.destroy();ch.current=null;}
-    ch.current=new Chart(ref.current.getContext("2d"),{
-      type:"bar",plugins:[stackPlugin],
-      data:{labels:data.map(d=>d.l),datasets:rows.map(r=>({
-        label:r.name,data:data.map(d=>d[r.id]||0),backgroundColor:r.col,stack:"a"
-      }))},
-      options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{mode:"index",callbacks:{footer:items=>"Summe: "+f0(items.reduce((s,i)=>s+i.parsed.y,0))}}},
-        scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:C.line},ticks:{callback:v=>(v/1000).toFixed(0)+"k",font:{size:10}}}}}
-    });
-    return()=>{if(ch.current)ch.current.destroy();};
-  },[JSON.stringify(data),JSON.stringify(rows.map(r=>r.id+r.col))]);
-  return html`<div style=${{height:"300px",position:"relative"}}><canvas ref=${ref}></canvas></div>`;
+function gros(r){ return r.kind==='cap'?(num(r.capital)*num(r.rate))/100/12:num(r.val); }
+function live(r,a){ return r.s0<=a&&(r.e9==null||a<r.e9); }
+function netM(r){
+  const g=gros(r);
+  if(r.kind==='cap'||r.kind==='dwn') return g-g*num(r.kap)/100;
+  const esr=num(document.getElementById('iEsr').value)||35;
+  const er=r.ls!=null?num(r.ls):esr;
+  return g-g*(num(r.ep)/100)*(er/100)-g*(num(r.sv)/100);
 }
+function valOf(r){ return netMode?netM(r):gros(r); }
 
-function LineChart2({data}){
-  const ref=useRef(null),ch=useRef(null);
-  useEffect(()=>{
-    if(!ref.current||data.length<2)return;
-    if(ch.current){ch.current.destroy();ch.current=null;}
-    ch.current=new Chart(ref.current.getContext("2d"),{
-      type:"line",
-      data:{labels:data.map(d=>d.date),datasets:[
-        {label:"Gesamt",data:data.map(d=>d.tot),borderColor:"#15202B",borderWidth:2,pointRadius:4,fill:false,tension:.1},
-        {label:"Trade Republic",data:data.map(d=>d.d1),borderColor:"#1F8A82",borderWidth:1.5,pointRadius:3,fill:false,tension:.1},
-        {label:"Comdirect",data:data.map(d=>d.d2),borderColor:"#6E8F4E",borderWidth:1.5,pointRadius:3,fill:false,tension:.1},
-      ]},
-      options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{labels:{font:{size:10}}}},
-        scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{grid:{color:C.line},ticks:{callback:v=>(v/1000).toFixed(0)+"k",font:{size:10}}}}}
-    });
-    return()=>{if(ch.current)ch.current.destroy();};
-  },[JSON.stringify(data)]);
-  return html`<div style=${{height:"180px",position:"relative"}}><canvas ref=${ref}></canvas></div>`;
-}
-
-function ProjChart({data}){
-  const ref=useRef(null),ch=useRef(null);
-  useEffect(()=>{
-    if(!ref.current)return;
-    if(ch.current){ch.current.destroy();ch.current=null;}
-    ch.current=new Chart(ref.current.getContext("2d"),{
-      type:"bar",
-      data:{labels:data.map(p=>""+p.age),datasets:[
-        {type:"bar",label:"Nominal",data:data.map(p=>p.nom),backgroundColor:"#0E6E62",borderRadius:4,order:2},
-        {type:"line",label:"Real (Kaufkraft)",data:data.map(p=>p.real),borderColor:"#9A5B2A",borderWidth:2,pointRadius:3,fill:false,order:1},
-      ]},
-      options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{labels:{font:{size:10}}},tooltip:{callbacks:{label:c=>c.dataset.label+": "+f0(c.raw)}}},
-        scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:C.line},ticks:{callback:v=>(v/1000).toFixed(0)+"k",font:{size:10}}}}}
-    });
-    return()=>{if(ch.current)ch.current.destroy();};
-  },[JSON.stringify(data)]);
-  return html`<div style=${{height:"240px",position:"relative"}}><canvas ref=${ref}></canvas></div>`;
-}
-
-function Inp({label,sfx,val,set,step,w}){
-  return html`<label style=${{display:"block",flex:w||"1 1 120px"}}>
-    <span style=${{display:"block",fontSize:10,letterSpacing:.6,textTransform:"uppercase",color:C.soft,marginBottom:3}}>${label}</span>
-    <span style=${{display:"flex",alignItems:"center",border:"1px solid "+C.line,borderRadius:8,background:"#FBFCFD",overflow:"hidden"}}>
-      <input type="number" step=${step||"1"} value=${val} onInput=${e=>set(e.target.value)}
-        style=${{width:"100%",border:"none",outline:"none",background:"transparent",padding:"8px 10px",fontFamily:mono,fontSize:14,color:C.ink,textAlign:"right"}}/>
-      ${sfx&&html`<span style=${{padding:"0 10px",color:C.soft,fontSize:13}}>${sfx}</span>`}
-    </span>
-  </label>`;
-}
-
-function AgePill({val,set,col}){
-  return html`<div style=${{display:"inline-flex",border:"1px solid "+C.line,borderRadius:999,overflow:"hidden"}}>
-    ${[60,63,65,67].map(a=>html`<button key=${a} onClick=${()=>set(a)} style=${{border:"none",cursor:"pointer",padding:"4px 10px",fontSize:11,
-      background:val===a?col:"transparent",color:val===a?"#fff":C.soft,fontWeight:val===a?700:400}}>ab ${a}</button>`)}
-  </div>`;
-}
-
-function App(){
-  const[rows,setRows]=useState(ROWS0);
-  const[net,setNet]=useState(true);
-  const[esr,setEsr]=useState(35);
-  const[pku,setPku]=useState(780);
-  const[pkt,setPkt]=useState(396);
-  const[tax,setTax]=useState(false);
-  const[snaps,setSnaps]=useState([]);
-  const[rdy,setRdy]=useState(false);
-  const[fd,setFd]=useState(today0());
-  const[f1,setF1]=useState("");
-  const[f2,setF2]=useState("");
-  const[fv,setFv]=useState("");
-  const[ps,setPs]=useState(1204676);
-  const[pr,setPr]=useState(6);
-  const[pf,setPf]=useState(-50000);
-  const[pi,setPi]=useState(2);
-  const[pw,setPw]=useState(63);
-
-  const SK="cashflow-v3";
-  const DEF=[{date:"2026-06-19",d1:1024548,d2:196211,dv:10265},{date:"2026-06-23",d1:1033572,d2:171387,dv:12840}];
-  useEffect(()=>{try{const s=localStorage.getItem(SK);setSnaps(s?JSON.parse(s):DEF);if(!s)localStorage.setItem(SK,JSON.stringify(DEF));}catch{setSnaps(DEF);}setRdy(true);},[]);
-  const savS=nx=>{setSnaps(nx);try{localStorage.setItem(SK,JSON.stringify(nx));}catch{}};
-  const addS=()=>{if(!fd||(!f1&&!f2))return;const e={date:fd,d1:num(f1),d2:num(f2),dv:fv===""?null:num(fv)};savS([...snaps.filter(s=>s.date!==fd),e].sort((a,b)=>a.date.localeCompare(b.date)));setF1("");setF2("");setFv("");setFd(today0());};
-  const delS=d=>savS(snaps.filter(s=>s.date!==d));
-
-  const age0=myAge(),yr0=new Date().getFullYear();
-  const netM=r=>{const g=gros(r);if(r.kind==="cap"||r.kind==="dwn")return g-g*num(r.kap)/100;const er=r.ls!=null?num(r.ls):num(esr);return g-g*(num(r.ep)/100)*(er/100)-g*(num(r.sv)/100);};
-  const valOf=r=>net?netM(r):gros(r);
-  const upd=(id,p)=>setRows(rs=>rs.map(r=>r.id===id?{...r,...p}:r));
-
-  const tots=useMemo(()=>SCEN.map(s=>{
-    const act=rows.filter(r=>live(r,s.a));
-    const drv=act.find(r=>r.id==="drv");
+function totals(){
+  const esr=num(document.getElementById('iEsr').value)||35;
+  const pku=num(document.getElementById('iPku').value)||780;
+  const pkt=num(document.getElementById('iPkt').value)||396;
+  return SCEN.map(s=>{
+    const act=ROWS.filter(r=>live(r,s.a));
+    const drv=act.find(r=>r.id==='drv');
     const zu=drv?gros(drv)*0.0855:0;
     const n=act.reduce((x,r)=>x+netM(r),0);
-    const pk=num(pku)+(s.a<63?num(pkt):0);
-    return{...s,vw:act.reduce((x,r)=>x+valOf(r),0),gr:act.reduce((x,r)=>x+gros(r),0),n,zu,pk,av:n-pk+zu};
-  }),[rows,net,esr,pku,pkt]);
+    const pk=pku+(s.a<63?pkt:0);
+    return{...s,vw:act.reduce((x,r)=>x+valOf(r),0),n,zu,pk,av:n-pk+zu};
+  });
+}
 
-  const cdat=useMemo(()=>SCEN.map(s=>{const o={l:s.l};rows.forEach(r=>{o[r.id]=live(r,s.a)?valOf(r):0;});return o;}),[rows,net,esr]);
+function projection(){
+  const PV=num(document.getElementById('iPs').value)||1204676;
+  const pr=num(document.getElementById('iPr').value)||6;
+  const pf=num(document.getElementById('iPf').value)||-50000;
+  const pi=num(document.getElementById('iPi').value)||2;
+  const pw=num(document.getElementById('iPw').value)||63;
+  const a0=ageNow(), r=pr/100, i=pi/100, yr=new Date().getFullYear();
+  const steps=[];let x=a0;while(x<85){steps.push(x);x+=5;}steps.push(85);
+  return steps.map(age=>{
+    const t=age-a0, tb=Math.max(0,Math.min(t,pw-a0));
+    const V0=PV*Math.pow(1+r,tb), ta=t-tb, g=Math.pow(1+r,ta);
+    const nom=ta<=0?V0:(r?V0*g+pf*((g-1)/r):V0+pf*ta);
+    const real=i?nom/Math.pow(1+i,t):nom;
+    return{age,year:yr+t,nom,real};
+  });
+}
 
-  const srtS=useMemo(()=>[...snaps].sort((a,b)=>a.date.localeCompare(b.date)),[snaps]);
-  const ldat=useMemo(()=>srtS.map(s=>({date:dayStr(s.date),d1:s.d1,d2:s.d2,tot:num(s.d1)+num(s.d2)})),[srtS]);
+function svgBar(data,rows,h){
+  const vals=data.map(d=>rows.reduce((s,r)=>s+(d[r.id]||0),0));
+  const maxV=Math.max(...vals,1);
+  const W=Math.min(window.innerWidth-30,860);
+  const cH=h-40, mL=36, mR=6, mT=22, mB=22;
+  const cW=W-mL-mR, bW=Math.min(80,(cW/data.length)*0.55), bGap=cW/data.length;
+  let svg=`<svg viewBox="0 0 ${W} ${h}" style="width:100%;height:${h}px;display:block">`;
+  for(let i=0;i<=4;i++){
+    const v=maxV/4*i, y=mT+cH-(v/maxV)*cH;
+    svg+=`<text x="${mL-4}" y="${y+3}" text-anchor="end" font-size="9" fill="#5A6B79">${(v/1000).toFixed(0)}k</text>`;
+    svg+=`<line x1="${mL}" y1="${y}" x2="${W-mR}" y2="${y}" stroke="#DCE3E9" stroke-dasharray="3,3"/>`;
+  }
+  data.forEach((d,xi)=>{
+    const bx=mL+xi*bGap+(bGap-bW)/2;
+    let yBase=mT+cH, tot=0;
+    rows.forEach(r=>{
+      const v=d[r.id]||0; if(!v)return;
+      const bh=(v/maxV)*cH; yBase-=bh; tot+=v;
+      svg+=`<rect x="${bx.toFixed(1)}" y="${yBase.toFixed(1)}" width="${bW}" height="${bh.toFixed(1)}" fill="${r.col}" rx="2"/>`;
+    });
+    if(tot>0) svg+=`<text x="${(bx+bW/2).toFixed(1)}" y="${(yBase-3).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="#15202B" font-family="monospace">${f0(tot)}</text>`;
+    svg+=`<text x="${(bx+bW/2).toFixed(1)}" y="${(mT+cH+14).toFixed(1)}" text-anchor="middle" font-size="10" fill="#5A6B79">${d.l.replace('Alter ','')}</text>`;
+  });
+  svg+='</svg>';
+  return svg;
+}
 
-  const steps=useMemo(()=>{const a=[];let x=age0;while(x<85){a.push(x);x+=5;}a.push(85);return[...new Set(a)];},[age0]);
-  const proj=useMemo(()=>{const PV=num(ps),r=num(pr)/100,Cf=num(pf),i=num(pi)/100,wa=num(pw);
-    return steps.map(age=>{const t=age-age0,tb=Math.max(0,Math.min(t,wa-age0)),V0=PV*Math.pow(1+r,tb),ta=t-tb,g=Math.pow(1+r,ta);
-      const nom=ta<=0?V0:(r?V0*g+Cf*((g-1)/r):V0+Cf*ta);
-      return{age,year:yr0+t,nom,real:i?nom/Math.pow(1+i,t):nom};});},[steps,age0,yr0,ps,pr,pf,pi,pw]);
-
-  const csv=()=>{
-    const f=n=>(n||0).toFixed(2).replace(".",",");
-    const L=["sep=;","Cashflow-Cockpit Schrickel",`${net?"Netto":"Brutto"};ESt;${f(esr)}%`,"","Klasse;Beginn;Brutto/M;Netto/M;Netto/J"];
-    rows.forEach(r=>L.push([r.name,"Alter "+r.s0+(r.e9?` bis ${r.e9}`:""),f(gros(r)),f(netM(r)),f(netM(r)*12)].join(";")));
-    L.push("");totals: tots.forEach(t=>L.push(`${t.l};${f(t.n)};${f(t.av)};${f(t.av*12)}`));
-    const b=new Blob([L.join("\n")],{type:"text/csv;charset=utf-8;"});
-    const a=Object.assign(document.createElement("a"),{href:URL.createObjectURL(b),download:"cashflow.csv"});a.click();
+function svgLine(snaps,h){
+  if(snaps.length<2)return '<p style="padding:12px;color:#5A6B79;font-size:12px">Min. 2 Einträge für Grafik</p>';
+  const W=Math.min(window.innerWidth-30,860);
+  const cH=h-40,mL=42,mR=6,mT=10,mB=22,cW=W-mL-mR;
+  const tots=snaps.map(s=>s.d1+s.d2);
+  const maxV=Math.max(...tots,1);
+  const pt=(s,i)=>{const x=mL+i*(cW/(snaps.length-1));const y=mT+cH-((s.d1+s.d2)/maxV)*cH;return{x,y};};
+  let svg=`<svg viewBox="0 0 ${W} ${h}" style="width:100%;height:${h}px;display:block">`;
+  for(let i=0;i<=3;i++){const v=maxV/3*i,y=mT+cH-(v/maxV)*cH;svg+=`<text x="${mL-4}" y="${y+3}" text-anchor="end" font-size="9" fill="#5A6B79">${(v/1000).toFixed(0)}k</text><line x1="${mL}" y1="${y}" x2="${W-mR}" y2="${y}" stroke="#DCE3E9" stroke-dasharray="3,3"/>`;}
+  const line=(key,col,dash)=>{
+    let d=''; snaps.forEach((s,i)=>{const x=mL+i*(cW/(snaps.length-1));const v=key==='tot'?s.d1+s.d2:s[key];const y=mT+cH-(v/maxV)*cH;d+=(i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1);});
+    svg+=`<path d="${d}" fill="none" stroke="${col}" stroke-width="${dash?1.5:2}" ${dash?'stroke-dasharray="4,3"':''}/>`; 
+    snaps.forEach((s,i)=>{const x=mL+i*(cW/(snaps.length-1));const v=key==='tot'?s.d1+s.d2:s[key];const y=mT+cH-(v/maxV)*cH;svg+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${col}"/>`; });
   };
+  line('tot','#15202B');line('d1','#1F8A82',true);line('d2','#6E8F4E',true);
+  snaps.forEach((s,i)=>{const x=mL+i*(cW/(snaps.length-1));svg+=`<text x="${x.toFixed(1)}" y="${mT+cH+14}" text-anchor="middle" font-size="9" fill="#5A6B79">${(s.date||'').slice(5)}</text>`;});
+  svg+=`<text x="${mL}" y="${mT+cH+14+10}" font-size="8" fill="#1F8A82">— TR</text><text x="${mL+30}" y="${mT+cH+14+10}" font-size="8" fill="#6E8F4E">— CD</text><text x="${mL+60}" y="${mT+cH+14+10}" font-size="8" fill="#15202B">— Gesamt</text>`;
+  svg+='</svg>';
+  return svg;
+}
 
-  const btn=(label,action,bg,fg)=>html`<button onClick=${action} style=${{border:`1px solid ${bg===C.ink?C.line:bg}`,background:bg,color:fg||C.soft,borderRadius:8,padding:"7px 12px",fontSize:12,cursor:"pointer",fontWeight:bg===C.ink?600:400}}>${label}</button>`;
+function svgProj(proj,h){
+  const maxV=Math.max(...proj.map(p=>p.nom),1);
+  const W=Math.min(window.innerWidth-30,860);
+  const cH=h-40,mL=42,mR=6,mT=20,mB=22,cW=W-mL-mR;
+  const bW=Math.min(50,(cW/proj.length)*0.5), bGap=cW/proj.length;
+  let svg=`<svg viewBox="0 0 ${W} ${h}" style="width:100%;height:${h}px;display:block">`;
+  for(let i=0;i<=4;i++){const v=maxV/4*i,y=mT+cH-(v/maxV)*cH;svg+=`<text x="${mL-4}" y="${y+3}" text-anchor="end" font-size="9" fill="#5A6B79">${(v/1000).toFixed(0)}k</text><line x1="${mL}" y1="${y}" x2="${W-mR}" y2="${y}" stroke="#DCE3E9" stroke-dasharray="3,3"/>`;};
+  proj.forEach((p,xi)=>{
+    const bx=mL+xi*bGap+(bGap-bW)/2;
+    const bh=(p.nom/maxV)*cH, by=mT+cH-bh;
+    svg+=`<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bW}" height="${bh.toFixed(1)}" fill="#0E6E62" rx="3"/>`;
+    svg+=`<text x="${(bx+bW/2).toFixed(1)}" y="${(by-3).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700" fill="#15202B" font-family="monospace">${(p.nom/1000).toFixed(0)}k</text>`;
+    svg+=`<text x="${(bx+bW/2).toFixed(1)}" y="${(mT+cH+14).toFixed(1)}" text-anchor="middle" font-size="10" fill="#5A6B79">${p.age}</text>`;
+  });
+  let rd='';proj.forEach((p,i)=>{const x=mL+i*bGap+bGap/2;const y=mT+cH-(p.real/maxV)*cH;rd+=(i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1);});
+  svg+=`<path d="${rd}" fill="none" stroke="#9A5B2A" stroke-width="2"/>`; 
+  proj.forEach((p,i)=>{const x=mL+i*bGap+bGap/2;const y=mT+cH-(p.real/maxV)*cH;svg+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="#9A5B2A"/>`;});
+  svg+=`<text x="${mL}" y="${mT+cH+24}" font-size="8" fill="#9A5B2A">— Real (Kaufkraft)</text>`;
+  svg+='</svg>';
+  return svg;
+}
 
-  return html`<div style=${{minHeight:"100vh",background:C.page,color:C.ink,padding:"20px 16px 56px"}}>
-  <div style=${{maxWidth:880,margin:"0 auto"}}>
+function recalc(){
+  const tots_=totals();
+  const a0=ageNow(), yr=new Date().getFullYear();
+  document.getElementById('age0lbl').textContent=a0;
 
-    <div style=${{display:"flex",alignItems:"baseline",justifyContent:"space-between",flexWrap:"wrap",gap:8,marginBottom:4}}>
-      <div>
-        <div style=${{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:C.green,fontWeight:700}}>Ruhestand · Schrickel · Rente ab 63</div>
-        <h1 style=${{margin:"2px 0 0",fontSize:26,letterSpacing:-.8,fontWeight:800}}>Cashflow-Cockpit</h1>
-      </div>
-      <div style=${{display:"flex",gap:8,flexWrap:"wrap"}}>
-        ${btn(net?"Netto":"Brutto",()=>setNet(!net),net?C.green:C.surface,net?"#fff":C.soft)}
-        ${btn("CSV",csv,C.ink,"#fff")}
-        ${btn("Reset",()=>setRows(ROWS0),C.surface)}
-      </div>
-    </div>
-    <p style=${{margin:"2px 0 16px",color:C.soft,fontSize:13}}>Monatliche Einkunfte · ${net?"netto (Schätzung)":"brutto"}</p>
+  // Mode button
+  document.getElementById('netBtn').textContent=netMode?'Netto':'Brutto';
+  document.getElementById('netBtn').className='btn'+(netMode?' btn-g':'');
+  document.getElementById('modeLabel').textContent=netMode?'Netto (Schätzung)':'Brutto (vor Abzügen)';
+  document.getElementById('sumLabel').textContent=netMode?'netto':'brutto';
 
-    <div style=${{background:C.surface,border:"1px solid "+C.line,borderRadius:14,padding:"12px 16px",marginBottom:16}}>
-      <button onClick=${()=>setTax(!tax)} style=${{border:"none",background:"none",cursor:"pointer",padding:0,fontSize:11,letterSpacing:1,textTransform:"uppercase",color:C.soft,fontWeight:700}}>Steuer &amp; PKV ${tax?"▾":"▸"}</button>
-      ${tax&&html`<div style=${{display:"flex",gap:12,flexWrap:"wrap",marginTop:12}}>
-        <${Inp} label="Grenzsteuersatz" sfx="%" step="0.5" val=${esr} set=${setEsr} w="1 1 120px"/>
-        <${Inp} label="PKV du/Monat" sfx="€" val=${pku} set=${setPku} w="1 1 130px"/>
-        <${Inp} label="PKV Tochter (bis 63)" sfx="€" val=${pkt} set=${setPkt} w="1 1 140px"/>
-        <p style=${{flex:"2 1 260px",margin:0,fontSize:11,color:C.soft,lineHeight:1.5}}>PKV du 780€ dauerhaft, Tochter 396€ bis Alter 63. DRV-Zuschuss ab 63 ca. 241€.</p>
-      </div>`}
-    </div>
+  // Scenario cards
+  document.getElementById('scenCards').innerHTML=tots_.map((t,i)=>`
+    <div class="scen-card">
+      <div class="age-label">${t.l}${t.a===a0?' · heute':` · ${yr+(t.a-a0)}`}</div>
+      <div class="mono" style="font-size:22px;font-weight:700;margin-top:4px;color:${i===SCEN.length-1?'#0E6E62':'#15202B'}">${f2(t.vw)}</div>
+      <div class="soft" style="font-size:11px;margin-top:2px">ca. ${f0(t.vw*12)} / Jahr</div>
+    </div>`).join('');
 
-    <div style=${{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12,marginBottom:16}}>
-      ${tots.map((s,i)=>html`<div key=${s.l} style=${{background:C.surface,border:"1px solid "+C.line,borderRadius:14,padding:"14px 16px"}}>
-        <div style=${{fontSize:11,color:C.soft}}>${s.l}${s.a===age0?" · heute":` · ${yr0+(s.a-age0)}`}</div>
-        <div style=${{fontFamily:mono,fontSize:22,fontWeight:700,letterSpacing:-1,marginTop:4,color:i===SCEN.length-1?C.green:C.ink}}>${f2(s.vw)}</div>
-        <div style=${{fontSize:11,color:C.soft,marginTop:2}}>ca. ${f0(s.vw*12)} / Jahr</div>
-      </div>`)}
-    </div>
+  // Bar chart
+  const cdat=SCEN.map(s=>{const o={l:s.l};ROWS.forEach(r=>{o[r.id]=live(r,s.a)?valOf(r):0;});return o;});
+  document.getElementById('barChart').innerHTML=svgBar(cdat,ROWS,270);
 
-    <div style=${{background:C.surface,border:"1px solid "+C.line,borderRadius:14,padding:"16px 12px 8px",marginBottom:16}}>
-      <${StackedBar} data=${cdat} rows=${rows}/>
-    </div>
-
-    <div style=${{background:C.surface,border:"1px solid "+C.line,borderRadius:14,overflow:"hidden"}}>
-      <div style=${{padding:"12px 16px",borderBottom:"1px solid "+C.line,fontSize:11,letterSpacing:1,textTransform:"uppercase",color:C.soft,fontWeight:700}}>Eingabemaske</div>
-      ${rows.map(r=>{
-        const g=gros(r),n=netM(r),sh=net?n:g;
-        return html`<div key=${r.id} style=${{padding:"14px 16px",borderBottom:"1px solid "+C.line,borderLeft:`4px solid ${r.col}`}}>
-          <div style=${{display:"flex",gap:14,flexWrap:"wrap",alignItems:"flex-start"}}>
-            <div style=${{flex:"1 1 180px",minWidth:170}}>
-              <div style=${{fontWeight:700,fontSize:14}}>${r.name}</div>
-              <div style=${{fontSize:11,color:C.soft,marginTop:3,lineHeight:1.4}}>${r.note}</div>
-              <div style=${{marginTop:8,display:"flex",alignItems:"center",gap:8}}>
-                <${AgePill} val=${r.s0} set=${a=>upd(r.id,{s0:a})} col=${r.col}/>
-                ${r.e9!=null&&html`<span style=${{fontSize:10,color:C.soft,background:C.page,borderRadius:999,padding:"3px 9px"}}>bis ${r.e9}</span>`}
-              </div>
-            </div>
-            <div style=${{display:"flex",gap:10,flex:"1 1 240px",flexWrap:"wrap",alignItems:"flex-end"}}>
-              ${r.kind==="cap"
-                ?html`<${Inp} label="Kapital" sfx="€" val=${r.capital} set=${v=>upd(r.id,{capital:v})} w="1 1 120px"/>
-                      <${Inp} label="Rate p.a." sfx="%" step="0.1" val=${r.rate} set=${v=>upd(r.id,{rate:v})} w="0 1 80px"/>`
-                :html`<${Inp} label="Betrag/Monat" sfx="€" val=${r.val} set=${v=>upd(r.id,{val:v})} w="1 1 150px"/>`}
-              <div style=${{minWidth:100,textAlign:"right",paddingBottom:8}}>
-                <div style=${{fontSize:10,color:C.soft,textTransform:"uppercase",letterSpacing:.6}}>${net?"netto/M":"brutto/M"}</div>
-                <div style=${{fontFamily:mono,fontSize:15,fontWeight:700,color:sh>0?C.ink:C.soft}}>${f2(sh)}</div>
-                ${net&&r.kind!=="cap"&&g>0&&html`<div style=${{fontSize:10,color:C.soft,fontFamily:mono}}>von ${f0(g)}</div>`}
-              </div>
-            </div>
+  // Rows
+  const esr=num(document.getElementById('iEsr').value)||35;
+  document.getElementById('rowsContainer').innerHTML=ROWS.map((r,ri)=>{
+    const g=gros(r),n=netM(r),sh=netMode?n:g;
+    const pills=[60,63,65,67].map(a=>`<button class="pill" style="background:${r.s0===a?r.col:'transparent'};color:${r.s0===a?'#fff':'#5A6B79'};font-weight:${r.s0===a?700:400}" onclick="setS0('${r.id}',${a})">ab ${a}</button>`).join('');
+    let inp='';
+    if(r.kind==='cap'){
+      inp=`<label style="flex:1 1 120px"><span class="lbl">Kapital €</span><input type="number" value="${r.capital}" oninput="updRow('${r.id}','capital',this.value)"></label>
+           <label style="flex:0 1 80px"><span class="lbl">Rate p.a. %</span><input type="number" step="0.1" value="${r.rate}" oninput="updRow('${r.id}','rate',this.value)"></label>`;
+    } else {
+      inp=`<label style="flex:1 1 140px"><span class="lbl">Betrag/Monat €</span><input type="number" value="${r.val}" oninput="updRow('${r.id}','val',this.value)"></label>`;
+    }
+    let taxInfo='';
+    if(netMode){
+      if(r.kind==='cap'||r.kind==='dwn'){
+        taxInfo=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed #DCE3E9">
+          <label style="flex:0 1 110px"><span class="lbl">Kapitalsteuer %</span><input type="number" step="0.1" value="${r.kap}" oninput="updRow('${r.id}','kap',this.value)"></label>
+          <span class="soft" style="font-size:11px;align-self:flex-end;padding-bottom:8px">Steuer -${f0(g*num(r.kap)/100)}/M</span></div>`;
+      } else {
+        const ls_val=r.ls!=null?r.ls:'';
+        taxInfo=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed #DCE3E9">
+          <label style="flex:0 1 100px"><span class="lbl">Steuerpfl. %</span><input type="number" step="1" value="${r.ep}" oninput="updRow('${r.id}','ep',this.value)"></label>
+          ${r.ls!=null?`<label style="flex:0 1 100px"><span class="lbl">Lohnsteuer %</span><input type="number" step="0.5" value="${r.ls}" oninput="updRow('${r.id}','ls',this.value)"></label>`:''}
+          <label style="flex:0 1 100px"><span class="lbl">KV+PV+SV %</span><input type="number" step="0.1" value="${r.sv}" oninput="updRow('${r.id}','sv',this.value)"></label>
+          <span class="soft" style="font-size:11px;align-self:flex-end;padding-bottom:8px">ESt -${f0(g*(num(r.ep)/100)*((r.ls!=null?num(r.ls):esr)/100))} · SV -${f0(g*(num(r.sv)/100))}</span></div>`;
+      }
+    }
+    return `<div class="row-in" style="border-left-color:${r.col}">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">
+        <div style="flex:1 1 170px;min-width:160px">
+          <div style="font-weight:700;font-size:14px">${escH(r.name)}</div>
+          <div class="soft" style="font-size:11px;margin-top:2px;line-height:1.4">${escH(r.note)}</div>
+          <div style="margin-top:8px;display:flex;align-items:center;gap:7px">
+            <div class="pills">${pills}</div>
+            ${r.e9!=null?`<span class="soft" style="font-size:10px;background:#EEF1F4;border-radius:999px;padding:3px 8px">bis ${r.e9}</span>`:''}
           </div>
-          ${net&&html`<div style=${{display:"flex",gap:10,flexWrap:"wrap",marginTop:10,paddingTop:10,borderTop:"1px dashed "+C.line}}>
-            ${(r.kind==="cap"||r.kind==="dwn")
-              ?html`<${Inp} label="Kapitalsteuer %" sfx="%" step="0.1" val=${r.kap} set=${v=>upd(r.id,{kap:v})} w="0 1 120px"/>
-                    <span style=${{fontSize:11,color:C.soft,alignSelf:"flex-end",paddingBottom:8}}>Steuer -${f0(g*num(r.kap)/100)}/M</span>`
-              :html`<${Inp} label="Steuerpfl. %" sfx="%" step="1" val=${r.ep} set=${v=>upd(r.id,{ep:v})} w="0 1 100px"/>
-                    ${r.ls!=null&&html`<${Inp} label="Lohnsteuer %" sfx="%" step="0.5" val=${r.ls} set=${v=>upd(r.id,{ls:v})} w="0 1 100px"/>`}
-                    <${Inp} label="KV+PV+SV %" sfx="%" step="0.1" val=${r.sv} set=${v=>upd(r.id,{sv:v})} w="0 1 100px"/>
-                    <span style=${{fontSize:11,color:C.soft,alignSelf:"flex-end",paddingBottom:8}}>ESt -${f0(g*(num(r.ep)/100)*((r.ls!=null?num(r.ls):num(esr))/100))} · SV -${f0(g*(num(r.sv)/100))}</span>`}
-          </div>`}
-        </div>`;
-      })}
-      <div style=${{padding:"14px 16px",background:"#F7F9FA",display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
-        <span style=${{fontWeight:700}}>Summe ${net?"netto":"brutto"}/Monat</span>
-        <span style=${{display:"flex",gap:16,fontSize:13,flexWrap:"wrap"}}>
-          ${tots.map((t,i)=>html`<span key=${t.l} style=${{color:C.soft}}>${t.l} <b style=${{color:i===SCEN.length-1?C.green:C.ink,fontFamily:mono}}>${f2(t.vw)}</b></span>`)}
-        </span>
-      </div>
-      ${(num(pku)>0||num(pkt)>0)&&html`<div style=${{padding:"12px 16px",background:"#FDF7F2",borderTop:"1px solid "+C.line,display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
-        <span style=${{fontWeight:700,color:"#9A5B2A"}}>Verfugbar nach PKV</span>
-        <span style=${{display:"flex",gap:16,fontSize:13,flexWrap:"wrap"}}>
-          ${tots.map((t,i)=>html`<span key=${t.l} style=${{color:C.soft}}>${t.l} <b style=${{color:i===SCEN.length-1?C.green:"#9A5B2A",fontFamily:mono}}>${f2(t.av)}</b><span style=${{fontSize:10}}> (-${f0(t.pk)}${t.zu>0?` +${f0(t.zu)} Zusch.`:""})</span></span>`)}
-        </span>
-      </div>`}
-    </div>
-
-    <div style=${{background:C.surface,border:"1px solid "+C.line,borderRadius:14,overflow:"hidden",marginTop:16}}>
-      <div style=${{padding:"12px 16px",borderBottom:"1px solid "+C.line,fontSize:11,letterSpacing:1,textTransform:"uppercase",color:C.soft,fontWeight:700}}>Depot-Tracking</div>
-      ${!rdy?html`<div style=${{padding:24,textAlign:"center",color:C.soft}}>Lädt...</div>`:html`<div>
-        <div style=${{padding:"14px 16px",borderBottom:"1px solid "+C.line,display:"flex",gap:10,flexWrap:"wrap",alignItems:"flex-end"}}>
-          <label style=${{display:"block",flex:"1 1 130px"}}>
-            <span style=${{display:"block",fontSize:10,letterSpacing:.6,textTransform:"uppercase",color:C.soft,marginBottom:3}}>Datum</span>
-            <input type="date" value=${fd} onInput=${e=>setFd(e.target.value)} style=${{width:"100%",border:"1px solid "+C.line,borderRadius:8,background:"#FBFCFD",padding:"8px 10px",fontFamily:mono,fontSize:13,color:C.ink}}/>
-          </label>
-          <${Inp} label="Trade Republic" sfx="€" val=${f1} set=${setF1} w="1 1 110px"/>
-          <${Inp} label="Comdirect" sfx="€" val=${f2} set=${setF2} w="1 1 110px"/>
-          <${Inp} label="Dividenden 12M" sfx="€" val=${fv} set=${setFv} w="1 1 110px"/>
-          <button onClick=${addS} style=${{border:"none",background:C.green,color:"#fff",borderRadius:8,padding:"9px 16px",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Eintrag</button>
         </div>
-        ${ldat.length>=2&&html`<div style=${{padding:"12px 12px 4px"}}><${LineChart2} data=${ldat}/></div>`}
-        ${[...srtS].reverse().map((s,i,arr)=>{
-          const tot=num(s.d1)+num(s.d2),prev=arr[i+1],dl=prev?tot-(num(prev.d1)+num(prev.d2)):null;
-          return html`<div key=${s.date} style=${{padding:"10px 16px",borderBottom:"1px solid "+C.line,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-            <span style=${{fontSize:11,color:C.soft,minWidth:78}}>${dayStr(s.date)}</span>
-            <span style=${{fontSize:12,fontFamily:mono,color:C.soft,minWidth:88}}>TR ${f0(s.d1)}</span>
-            <span style=${{fontSize:12,fontFamily:mono,color:C.soft,minWidth:88}}>CD ${f0(s.d2)}</span>
-            <span style=${{fontSize:13,fontFamily:mono,fontWeight:700,color:C.ink,flex:1,textAlign:"right"}}>${f0(tot)}</span>
-            ${dl!==null&&html`<span style=${{fontSize:11,fontFamily:mono,color:dl>=0?C.green:"#B23A3A",minWidth:70,textAlign:"right"}}>${dl>=0?"+":""}${f0(dl)}</span>`}
-            <button onClick=${()=>delS(s.date)} style=${{border:"none",background:"transparent",color:C.soft,cursor:"pointer",fontSize:14,padding:"2px 6px"}}>x</button>
-          </div>`;
-        })}
-      </div>`}
-    </div>
-
-    <div style=${{background:C.surface,border:"1px solid "+C.line,borderRadius:14,overflow:"hidden",marginTop:16}}>
-      <div style=${{padding:"12px 16px",borderBottom:"1px solid "+C.line,fontSize:11,letterSpacing:1,textTransform:"uppercase",color:C.soft,fontWeight:700}}>Depot-Projektion · Alter ${age0} bis 85</div>
-      <div style=${{padding:"14px 16px",borderBottom:"1px solid "+C.line,display:"flex",gap:10,flexWrap:"wrap"}}>
-        <${Inp} label="Startkapital" sfx="€" val=${ps} set=${setPs} w="1 1 140px"/>
-        <${Inp} label="Rendite p.a." sfx="%" step="0.1" val=${pr} set=${setPr} w="0 1 100px"/>
-        <${Inp} label="Auszahlung p.a." sfx="€" step="100" val=${pf} set=${setPf} w="1 1 140px"/>
-        <${Inp} label="ab Alter" sfx="J" val=${pw} set=${setPw} w="0 1 90px"/>
-        <${Inp} label="Inflation p.a." sfx="%" step="0.1" val=${pi} set=${setPi} w="0 1 100px"/>
+        <div style="display:flex;gap:8px;flex:1 1 230px;flex-wrap:wrap;align-items:flex-end">
+          ${inp}
+          <div style="min-width:95px;text-align:right;padding-bottom:8px">
+            <div class="soft" style="font-size:9px;text-transform:uppercase;letter-spacing:.5px">${netMode?'netto':'brutto'}/M</div>
+            <div class="mono" style="font-size:15px;font-weight:700;color:${sh>0?'#15202B':'#5A6B79'}">${f2(sh)}</div>
+            ${netMode&&r.kind!=='cap'&&g>0?`<div class="soft mono" style="font-size:10px">von ${f0(g)}</div>`:''}
+          </div>
+        </div>
       </div>
-      <div style=${{padding:"12px 12px 4px"}}><${ProjChart} data=${proj}/></div>
-      <div style=${{padding:"4px 16px 14px"}}>
-        ${proj.map(p=>html`<div key=${p.age} style=${{display:"flex",alignItems:"center",gap:10,padding:"7px 0",borderBottom:"1px solid "+C.line,flexWrap:"wrap"}}>
-          <span style=${{fontSize:12,fontWeight:700,color:C.ink,minWidth:70}}>Alter ${p.age}</span>
-          <span style=${{fontSize:11,color:C.soft,minWidth:50}}>${p.year}</span>
-          <span style=${{fontFamily:mono,fontSize:13,fontWeight:700,color:C.ink,flex:1,textAlign:"right"}}>${f0(p.nom)}</span>
-          <span style=${{fontFamily:mono,fontSize:11,color:"#9A5B2A",minWidth:110,textAlign:"right"}}>real ${f0(p.real)}</span>
-        </div>`)}
-      </div>
-    </div>
+      ${taxInfo}
+    </div>`;
+  }).join('');
 
-    <p style=${{fontSize:11,color:C.soft,marginTop:14,lineHeight:1.5}}>PKV (Hallesche): kein gesetzlicher KV/PV-Abzug. DRV-Zuschuss ab 63 ca. 241€. Depot-Projektion: Zinseszins-Hochrechnung, keine Prognose. Keine Steuer-, Anlage- oder Rechtsberatung.</p>
-  </div>
-</div>`;
+  // Sum line
+  document.getElementById('sumLine').innerHTML=tots_.map((t,i)=>`<span class="soft">${t.l} <b class="mono" style="color:${i===SCEN.length-1?'#0E6E62':'#15202B'}">${f2(t.vw)}</b></span>`).join(' &nbsp; ');
+
+  // Avail row
+  const pku2=num(document.getElementById('iPku').value)||780;
+  const pkt2=num(document.getElementById('iPkt').value)||396;
+  if(pku2>0||pkt2>0){
+    document.getElementById('availRow').style.display='flex';
+    document.getElementById('availRow').innerHTML='<span>Verfügbar nach PKV</span><span style="display:flex;gap:14px;flex-wrap:wrap">'+
+      tots_.map((t,i)=>`<span class="soft">${t.l} <b class="mono" style="color:${i===SCEN.length-1?'#0E6E62':'#9A5B2A'}">${f2(t.av)}</b><span style="font-size:10px"> (-${f0(t.pk)}${t.zu>0?` +${f0(t.zu)}Zu.`:''})</span></span>`).join('')+'</span>';
+  } else { document.getElementById('availRow').style.display='none'; }
+
+  // Snaps
+  const srtS=[...snapshots].sort((a,b)=>a.date.localeCompare(b.date));
+  document.getElementById('snapList').innerHTML=[...srtS].reverse().map((s,i,arr)=>{
+    const tot=s.d1+s.d2, prev=arr[i+1], dl=prev?tot-(prev.d1+prev.d2):null;
+    return `<div class="snap-row">
+      <span class="soft" style="min-width:75px;font-size:11px">${s.date}</span>
+      <span class="soft mono" style="min-width:85px">TR ${f0(s.d1)}</span>
+      <span class="soft mono" style="min-width:85px">CD ${f0(s.d2)}</span>
+      <span class="mono" style="font-weight:700;flex:1;text-align:right">${f0(tot)}</span>
+      ${dl!==null?`<span class="mono" style="color:${dl>=0?'#0E6E62':'#B23A3A'};min-width:70px;text-align:right">${dl>=0?'+':''}${f0(dl)}</span>`:''}
+      <button onclick="delSnap('${s.date}')" style="border:none;background:transparent;color:#5A6B79;cursor:pointer;font-size:14px">x</button>
+    </div>`;
+  }).join('');
+  if(srtS.length>=2) document.getElementById('snapList').insertAdjacentHTML('beforeend',`<div style="padding:8px 4px">${svgLine(srtS,160)}</div>`);
+
+  // Projection
+  const proj=projection();
+  document.getElementById('projChart').innerHTML=svgProj(proj,210);
+  document.getElementById('projTable').innerHTML=proj.map(p=>`
+    <div class="proj-row">
+      <span style="font-weight:700;font-size:12px;min-width:70px">Alter ${p.age}</span>
+      <span class="soft" style="font-size:11px;min-width:50px">${p.year}</span>
+      <span class="mono" style="font-weight:700;font-size:13px;flex:1;text-align:right">${f0(p.nom)}</span>
+      <span class="mono soft" style="font-size:11px;color:#9A5B2A;min-width:110px;text-align:right">real ${f0(p.real)}</span>
+    </div>`).join('');
 }
 
-try{
-  ReactDOM.createRoot(document.getElementById("root")).render(html`<${App}/>`);
-  document.getElementById("splash").remove();
-}catch(e){
-  document.getElementById("splash").innerHTML="<p style='color:red;padding:20px;text-align:center;font-size:14px'>Fehler: "+e.message+"</p>";
-  console.error(e);
+function toggleNet(){ netMode=!netMode; recalc(); }
+function toggleTax(){
+  const p=document.getElementById('taxPanel');
+  const h=document.getElementById('taxHead');
+  p.style.display=p.style.display==='none'?'block':'none';
+  h.textContent='Steuer & PKV '+(p.style.display==='none'?'▸':'▾');
 }
+function updRow(id,key,v){
+  const r=ROWS.find(r=>r.id===id);
+  if(r) r[key]=key==='capital'||key==='rate'||key==='kap'||key==='val'||key==='ep'||key==='sv'||key==='ls'?num(v):v;
+  recalc();
+}
+function setS0(id,a){ const r=ROWS.find(r=>r.id===id); if(r)r.s0=a; recalc(); }
+function resetAll(){ ROWS=JSON.parse(JSON.stringify(ROWS0)); recalc(); }
+function exportCSV(){
+  const L=["sep=;","Cashflow-Cockpit Schrickel","","Klasse;Beginn;Brutto/M;Netto/M;Netto/J"];
+  ROWS.forEach(r=>L.push([r.name,"Alter "+r.s0+(r.e9?` bis ${r.e9}`:""),
+    (gros(r)).toFixed(2).replace(".",","),(netM(r)).toFixed(2).replace(".",","),(netM(r)*12).toFixed(2).replace(".",",")].join(";")));
+  const b=new Blob([L.join("\n")],{type:"text/csv;charset=utf-8;"});
+  const a=Object.assign(document.createElement("a"),{href:URL.createObjectURL(b),download:"cashflow.csv"});a.click();
+}
+function addSnap(){
+  const d=document.getElementById('fDate').value;
+  const d1=num(document.getElementById('fD1').value);
+  const d2=num(document.getElementById('fD2').value);
+  if(!d||(!d1&&!d2)) return;
+  snapshots=[...snapshots.filter(s=>s.date!==d),{date:d,d1,d2}].sort((a,b)=>a.date.localeCompare(b.date));
+  localStorage.setItem(SK,JSON.stringify(snapshots));
+  document.getElementById('fD1').value='';
+  document.getElementById('fD2').value='';
+  document.getElementById('fDv').value='';
+  recalc();
+}
+function delSnap(d){ snapshots=snapshots.filter(s=>s.date!==d); localStorage.setItem(SK,JSON.stringify(snapshots)); recalc(); }
+
+// Init
+const DEF=[{date:"2026-06-19",d1:1024548,d2:196211},{date:"2026-06-23",d1:1033572,d2:171387},{date:"2026-06-25",d1:999575,d2:180512}];
+try{const s=localStorage.getItem(SK);snapshots=s?JSON.parse(s):DEF;if(!s)localStorage.setItem(SK,JSON.stringify(DEF));}catch{snapshots=DEF;}
+document.getElementById('fDate').value=new Date().toISOString().slice(0,10);
+recalc();
 </script>
 </body>
 </html>

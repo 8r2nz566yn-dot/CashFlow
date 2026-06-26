@@ -1,29 +1,10 @@
-const CACHE = "cashflow-v3";
-const ASSETS = [
-  "./",
-  "./index.html",
-  "https://unpkg.com/react@18/umd/react.production.min.js",
-  "https://unpkg.com/react-dom@18/umd/react-dom.production.min.js",
-  "https://unpkg.com/recharts@2.12.7/umd/Recharts.js",
-  "https://unpkg.com/@babel/standalone/babel.min.js"
-];
-
-self.addEventListener("install", e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+// Löscht alle Caches und deregistriert sich selbst
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', async () => {
+  const keys = await caches.keys();
+  await Promise.all(keys.map(k => caches.delete(k)));
+  await self.registration.unregister();
+  const clients = await self.clients.matchAll({type:'window'});
+  clients.forEach(c => c.navigate(c.url));
 });
-
-self.addEventListener("activate", e => {
-  e.waitUntil(caches.keys().then(keys =>
-    Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-  ).then(() => self.clients.claim()));
-});
-
-self.addEventListener("fetch", e => {
-  e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request).then(resp => {
-      const clone = resp.clone();
-      caches.open(CACHE).then(c => c.put(e.request, clone));
-      return resp;
-    }))
-  );
-});
+self.addEventListener('fetch', e => e.respondWith(fetch(e.request)));
