@@ -79,6 +79,17 @@ input[type=date]{width:100%;border:1px solid #DCE3E9;border-radius:7px;padding:7
   </div>
 
   <div class="card">
+    <div class="card-head" onclick="toggleAus()" style="cursor:pointer" id="ausHead">Monatliche Ausgaben ▸</div>
+    <div id="ausPanel" style="display:none">
+      <div id="ausRows"></div>
+      <div style="padding:10px 15px;background:#FDF7F2;border-top:1px solid #DCE3E9;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;font-weight:700;color:#9A5B2A">Summe Ausgaben/Monat</span>
+        <span id="ausSumLine" class="mono" style="font-size:13px;font-weight:700;color:#9A5B2A"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
     <div class="card-head">Depot-Tracking</div>
     <div style="padding:12px 15px;border-bottom:1px solid #DCE3E9">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
@@ -109,7 +120,7 @@ input[type=date]{width:100%;border:1px solid #DCE3E9;border-radius:7px;padding:7
 
   <p class="soft" style="font-size:11px;line-height:1.5;margin-top:12px">PKV (Hallesche): kein gesetzlicher KV/PV-Abzug. Depot-Projektion: Zinseszins-Hochrechnung, keine Prognose. Keine Steuer-, Anlage- oder Rechtsberatung.</p>
 </div>
-<div class="ver">v5.0</div>
+<div class="ver">v6.0</div>
 
 <script>
 // Service Worker deregistrieren (räumt alten Cache auf)
@@ -123,10 +134,10 @@ function ageNow(){const n=new Date();let a=n.getFullYear()-BIRTH.getFullYear();i
 const SCEN=[{l:"Alter 60",a:60},{l:"Alter 63",a:63},{l:"Alter 65",a:65},{l:"Alter 67",a:67}];
 
 let ROWS=[
-  {id:"drv",  name:"DRV Rente",             col:"#3B5B7A",kind:"fix",val:2826.39,s0:63,ep:85,sv:0,ls:null,note:"Volle Rente mit Ausgleich (109.474€). PKV=kein KV/PV."},
+  {id:"drv",  name:"DRV Rente",             col:"#3B5B7A",kind:"fix",val:2826.39,s0:63,ep:85,sv:0,ls:null,gr:2,note:"Volle Rente mit Ausgleich. Rentenanpassung 2%/J."},
   {id:"bosch",name:"bAV Bosch",              col:"#1F8A82",kind:"fix",val:8012.61,s0:60,ep:17,sv:0,ls:null,note:"Netto=Brutto (PKV). 1.343€ steuerpflichtig."},
   {id:"brose",name:"bAV Brose",              col:"#C2843B",kind:"fix",val:4451,   s0:67,ep:100,sv:0,ls:null,note:"Ab Alter 67. Konto 31.12.2025: 53.414€."},
-  {id:"div",  name:"Dividenden",             col:"#6E8F4E",kind:"cap",capital:1400000,rate:1.10,kap:17.3,s0:60,note:"TR+Comdirect 1.204.676€. Rendite 1,10%."},
+  {id:"div",  name:"Dividenden",             col:"#6E8F4E",kind:"cap",capital:1400000,rate:1.10,kap:17.3,s0:60,gr:3,note:"TR+Comdirect. Rendite 1,10%. Dividendenwachstum 3%/J."},
   {id:"zins", name:"Zinsen Barmittel",       col:"#7C6CA6",kind:"cap",capital:400000,rate:2.5,kap:26.375,s0:60,note:"Trade Republic 3,50% p.a."},
   {id:"miete",name:"Miete",                  col:"#94897A",kind:"fix",val:1200,   s0:60,ep:100,sv:0,ls:null,note:"Mieteinnahmen brutto."},
   {id:"frau", name:"Gehalt Ehefrau (StKl5)", col:"#D4A14A",kind:"fix",val:4700,   s0:60,e9:63,ep:100,sv:22.5,ls:32,note:"4.700€/M brutto. Steuerklasse 5. Endet Alter 63."},
@@ -134,6 +145,13 @@ let ROWS=[
   {id:"entn", name:"Depot-Entnahme",         col:"#A4548C",kind:"dwn",val:2500,   s0:63,kap:15,note:"50.000€/Jahr ab Alter 63."},
 ];
 const ROWS0 = JSON.parse(JSON.stringify(ROWS));
+
+let AUSGABEN=[
+  {id:"aus1",name:"Lebenshaltung",       col:"#E07B54",val:3000,s0:60,note:"Haushalt, Lebensmittel, Auto, laufende Kosten"},
+  {id:"aus2",name:"Reisen & Freizeit",   col:"#E0A854",val:500, s0:60,note:"Urlaub, Hobbys, Restaurants"},
+  {id:"aus3",name:"Sonstiges",           col:"#B0A090",val:0,   s0:60,note:"Weitere Ausgaben (freitext)"},
+];
+const AUS0 = JSON.parse(JSON.stringify(AUSGABEN));
 
 const num = v => Number(v)||0;
 const f0 = n => new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n||0);
@@ -144,28 +162,35 @@ let netMode = true;
 let snapshots = [];
 const SK = 'cashflow-v5';
 
-function gros(r){ return r.kind==='cap'?(num(r.capital)*num(r.rate))/100/12:num(r.val); }
 function live(r,a){ return r.s0<=a&&(r.e9==null||a<r.e9); }
-function netM(r){
-  const g=gros(r);
+function grosAtAge(r,age){
+  const base=r.kind==='cap'?(num(r.capital)*num(r.rate))/100/12:num(r.val);
+  if(!r.gr||age==null||age<=r.s0) return base;
+  return base*Math.pow(1+num(r.gr)/100, age-r.s0);
+}
+function gros(r){ return grosAtAge(r,null); }
+function netMAtAge(r,age){
+  const g=grosAtAge(r,age);
   if(r.kind==='cap'||r.kind==='dwn') return g-g*num(r.kap)/100;
   const esr=num(document.getElementById('iEsr').value)||35;
   const er=r.ls!=null?num(r.ls):esr;
   return g-g*(num(r.ep)/100)*(er/100)-g*(num(r.sv)/100);
 }
+function netM(r){ return netMAtAge(r,null); }
 function valOf(r){ return netMode?netM(r):gros(r); }
 
 function totals(){
-  const esr=num(document.getElementById('iEsr').value)||35;
   const pku=num(document.getElementById('iPku').value)||780;
   const pkt=num(document.getElementById('iPkt').value)||396;
   return SCEN.map(s=>{
     const act=ROWS.filter(r=>live(r,s.a));
     const drv=act.find(r=>r.id==='drv');
-    const zu=drv?gros(drv)*0.0855:0;
-    const n=act.reduce((x,r)=>x+netM(r),0);
+    const zu=drv?grosAtAge(drv,s.a)*0.0855:0;
+    const n=act.reduce((x,r)=>x+netMAtAge(r,s.a),0);
+    const vw=act.reduce((x,r)=>x+(netMode?netMAtAge(r,s.a):grosAtAge(r,s.a)),0);
     const pk=pku+(s.a<63?pkt:0);
-    return{...s,vw:act.reduce((x,r)=>x+valOf(r),0),n,zu,pk,av:n-pk+zu};
+    const aus=AUSGABEN.filter(a=>live(a,s.a)).reduce((x,a)=>x+num(a.val),0);
+    return{...s,vw,n,zu,pk,av:n-pk+zu,aus,avA:n-pk+zu-aus};
   });
 }
 
@@ -271,12 +296,13 @@ function recalc(){
   document.getElementById('scenCards').innerHTML=tots_.map((t,i)=>`
     <div class="scen-card">
       <div class="age-label">${t.l}${t.a===a0?' · heute':` · ${yr+(t.a-a0)}`}</div>
-      <div class="mono" style="font-size:22px;font-weight:700;margin-top:4px;color:${i===SCEN.length-1?'#0E6E62':'#15202B'}">${f2(t.vw)}</div>
+      <div class="mono" style="font-size:21px;font-weight:700;margin-top:4px;color:${i===SCEN.length-1?'#0E6E62':'#15202B'}">${f2(t.vw)}</div>
       <div class="soft" style="font-size:11px;margin-top:2px">ca. ${f0(t.vw*12)} / Jahr</div>
+      ${t.aus>0?`<div style="font-size:10px;color:#9A5B2A;margin-top:3px;font-weight:600">nach Ausg. ${f0(t.avA)}/M</div>`:''}
     </div>`).join('');
 
   // Bar chart
-  const cdat=SCEN.map(s=>{const o={l:s.l};ROWS.forEach(r=>{o[r.id]=live(r,s.a)?valOf(r):0;});return o;});
+  const cdat=SCEN.map(s=>{const o={l:s.l};ROWS.forEach(r=>{o[r.id]=live(r,s.a)?(netMode?netMAtAge(r,s.a):grosAtAge(r,s.a)):0;});return o;});
   document.getElementById('barChart').innerHTML=svgBar(cdat,ROWS,270);
 
   // Rows
@@ -286,10 +312,12 @@ function recalc(){
     const pills=[60,63,65,67].map(a=>`<button class="pill" style="background:${r.s0===a?r.col:'transparent'};color:${r.s0===a?'#fff':'#5A6B79'};font-weight:${r.s0===a?700:400}" onclick="setS0('${r.id}',${a})">ab ${a}</button>`).join('');
     let inp='';
     if(r.kind==='cap'){
-      inp=`<label style="flex:1 1 120px"><span class="lbl">Kapital €</span><input type="number" value="${r.capital}" oninput="updRow('${r.id}','capital',this.value)"></label>
-           <label style="flex:0 1 80px"><span class="lbl">Rate p.a. %</span><input type="number" step="0.1" value="${r.rate}" oninput="updRow('${r.id}','rate',this.value)"></label>`;
+      inp=`<label style="flex:1 1 110px"><span class="lbl">Kapital €</span><input type="number" value="${r.capital}" oninput="updRow('${r.id}','capital',this.value)"></label>
+           <label style="flex:0 1 75px"><span class="lbl">Rate p.a. %</span><input type="number" step="0.1" value="${r.rate}" oninput="updRow('${r.id}','rate',this.value)"></label>
+           ${r.gr!=null?`<label style="flex:0 1 75px"><span class="lbl">Wachstum %</span><input type="number" step="0.1" value="${r.gr}" oninput="updRow('${r.id}','gr',parseFloat(this.value))"></label>`:''}`;
     } else {
-      inp=`<label style="flex:1 1 140px"><span class="lbl">Betrag/Monat €</span><input type="number" value="${r.val}" oninput="updRow('${r.id}','val',this.value)"></label>`;
+      inp=`<label style="flex:1 1 140px"><span class="lbl">Betrag/Monat €</span><input type="number" value="${r.val}" oninput="updRow('${r.id}','val',this.value)"></label>
+           ${r.gr!=null?`<label style="flex:0 1 75px"><span class="lbl">Wachstum %</span><input type="number" step="0.1" value="${r.gr}" oninput="updRow('${r.id}','gr',parseFloat(this.value))"></label>`:''}`;
     }
     let taxInfo='';
     if(netMode){
@@ -341,6 +369,23 @@ function recalc(){
       tots_.map((t,i)=>`<span class="soft">${t.l} <b class="mono" style="color:${i===SCEN.length-1?'#0E6E62':'#9A5B2A'}">${f2(t.av)}</b><span style="font-size:10px"> (-${f0(t.pk)}${t.zu>0?` +${f0(t.zu)}Zu.`:''})</span></span>`).join('')+'</span>';
   } else { document.getElementById('availRow').style.display='none'; }
 
+  // Ausgaben section
+  const ausRows=document.getElementById('ausRows');
+  if(ausRows){
+    ausRows.innerHTML=AUSGABEN.map(a=>`
+      <div style="padding:10px 15px;border-bottom:1px solid #DCE3E9;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <div style="width:8px;height:32px;border-radius:2px;background:${a.col};flex-shrink:0"></div>
+        <div style="flex:1 1 140px">
+          <div style="font-weight:700;font-size:13px">${escH(a.name)}</div>
+          <div class="soft" style="font-size:10px">${escH(a.note)}</div>
+        </div>
+        <label style="flex:0 1 120px"><span class="lbl">€/Monat</span><input type="number" value="${a.val}" oninput="updAus('${a.id}',this.value)"></label>
+        <span class="mono" style="font-size:13px;font-weight:700;min-width:80px;text-align:right;color:#9A5B2A">-${f0(num(a.val))}</span>
+      </div>`).join('');
+    const ausSum=AUSGABEN.reduce((s,a)=>s+num(a.val),0);
+    document.getElementById('ausSumLine').textContent='-'+f0(ausSum)+'/M · -'+f0(ausSum*12)+'/J';
+  }
+
   // Snaps
   const srtS=[...snapshots].sort((a,b)=>a.date.localeCompare(b.date));
   document.getElementById('snapList').innerHTML=[...srtS].reverse().map((s,i,arr)=>{
@@ -377,11 +422,18 @@ function toggleTax(){
 }
 function updRow(id,key,v){
   const r=ROWS.find(r=>r.id===id);
-  if(r) r[key]=key==='capital'||key==='rate'||key==='kap'||key==='val'||key==='ep'||key==='sv'||key==='ls'?num(v):v;
+  if(r) r[key]=key==='capital'||key==='rate'||key==='kap'||key==='val'||key==='ep'||key==='sv'||key==='ls'||key==='gr'?num(v):v;
   recalc();
 }
 function setS0(id,a){ const r=ROWS.find(r=>r.id===id); if(r)r.s0=a; recalc(); }
-function resetAll(){ ROWS=JSON.parse(JSON.stringify(ROWS0)); recalc(); }
+function updAus(id,v){ const a=AUSGABEN.find(a=>a.id===id); if(a)a.val=num(v); recalc(); }
+function toggleAus(){
+  const p=document.getElementById('ausPanel');
+  const h=document.getElementById('ausHead');
+  p.style.display=p.style.display==='none'?'block':'none';
+  h.textContent='Monatliche Ausgaben '+(p.style.display==='none'?'▸':'▾');
+}
+function resetAll(){ ROWS=JSON.parse(JSON.stringify(ROWS0)); AUSGABEN=JSON.parse(JSON.stringify(AUS0)); recalc(); }
 function exportCSV(){
   const L=["sep=;","Cashflow-Cockpit Schrickel","","Klasse;Beginn;Brutto/M;Netto/M;Netto/J"];
   ROWS.forEach(r=>L.push([r.name,"Alter "+r.s0+(r.e9?` bis ${r.e9}`:""),
